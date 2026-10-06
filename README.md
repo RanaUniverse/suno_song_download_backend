@@ -11,3 +11,9 @@ After i clone this i rename this folder and then make the git here.
 ```
 git init . -b main
 ```
+
+```
+uv init . --python 3.12.12 --no-package
+```
+
+
