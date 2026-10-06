@@ -17,10 +17,19 @@ import hashlib
 import subprocess
 
 # import urllib.parse
-from typing import Optional, Dict, Any, Callable
+from typing import (
+    Optional,
+    Dict,
+    Any,
+    Callable,
+)
 import requests
 from bs4 import BeautifulSoup
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.ciphers import (
+    Cipher,
+    algorithms,
+    modes,
+)
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.backends import default_backend
 
@@ -53,7 +62,7 @@ UUID_REGEX = re.compile(
 
 
 def sanitize_filename(name: str) -> str:
-    """Limpia caracteres no permitidos en nombres de archivo."""
+    """Cleans unauthorized characters in file names."""
     clean = re.sub(r'[\\/*?:"<>|]', "", name)
     clean = clean.strip().replace("\n", " ").replace("\r", "")
     return clean[:90] if clean else "suno_song"
@@ -66,7 +75,7 @@ class SunoScraper:
         self.ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
 
     def resolve_share_code(self, share_code: str) -> Optional[str]:
-        """Intenta resolver un enlace compartido corto de Suno (/s/CODE) hacia el ID real de la canción."""
+        """Attempts to resolve a short Suno shared link (/s/CODE) to the actual song ID."""
         endpoints = [
             f"https://studio-api.prod.suno.com/api/share/code/{share_code}",
             f"https://studio-api-prod.suno.com/api/share/code/{share_code}",
@@ -92,14 +101,14 @@ class SunoScraper:
         return None
 
     def extract_song_id(self, url_or_id: str) -> Optional[str]:
-        """Extrae el UUID de la canción de Suno."""
+        """Extracts the Suno song UUID."""
         match = UUID_REGEX.search(url_or_id)
         if match:
             return match.group(1)
         return None
 
     def scrape_song_info(self, url: str) -> Dict[str, Any]:
-        """Extrae metadatos, imagen y URLs desde la página de Suno."""
+        """Extracts metadata, image, and URLs from the Suno page."""
         url = url.strip()
         if not url.startswith("http"):
             song_id = self.extract_song_id(url)
@@ -132,15 +141,15 @@ class SunoScraper:
         if is_home_redirect and not song_id:
             if share_match or "/s/" in url:
                 raise ValueError(
-                    f"No se pudo encontrar la canción del enlace corto:\n'{url}'\n\n"
-                    "El enlace no existe, es privado o ha expirado en Suno (los servidores de Suno lo redirigen a la página principal).\n\n"
-                    "👉 Solución: Abre la canción en tu navegador (o en la app de Suno), haz clic en el título y copia el enlace directo con el ID de la canción:\n"
+                    f"Could not find the song from the short link:\n'{url}'\n\n"
+                    "The link does not exist, is private, or has expired on Suno (Suno's servers redirect it to the home page).\n\n"
+                    "👉 Solution: Open the song in your browser (or in the Suno app), click on the title, and copy the direct link containing the song ID:\n"
                     "https://suno.com/song/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                 )
             else:
                 raise ValueError(
-                    f"El enlace redirige a la página principal de Suno sin encontrar la canción:\n'{url}'\n\n"
-                    "Por favor usa el enlace completo de la canción:\n"
+                    f"The link redirects to Suno's home page without finding the song:\n'{url}'\n\n"
+                    "Please use the full song link:\n"
                     "https://suno.com/song/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                 )
 
@@ -156,9 +165,9 @@ class SunoScraper:
 
         if not song_id:
             raise ValueError(
-                f"No se pudo detectar el ID de la canción en '{url}'.\n\n"
-                "Asegúrate de pegar un enlace directo a una canción de Suno:\n"
-                "Ejemplo: https://suno.com/song/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                f"Could not detect the song ID in '{url}'.\n\n"
+                "Make sure to paste a direct link to a Suno song:\n"
+                "Example: https://suno.com/song/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
             )
 
         html = response.text
@@ -233,8 +242,8 @@ class SunoScraper:
         progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
     ) -> str:
         """
-        Descifra el audio de Suno usando el sistema Mango (AES-GCM unwrapping + AES-128-CTR stream decryption)
-        y lo convierte al formato deseado (MP3 320 kbps o WAV sin compresión).
+        Decrypts Suno audio using the Mango system (AES-GCM unwrapping + AES-128-CTR stream decryption)
+        and converts it to the desired format (MP3 320 kbps or uncompressed WAV).
         """
         if progress_callback:
             progress_callback("licencia", 0, 0, 10.0)
@@ -245,7 +254,7 @@ class SunoScraper:
         rights_res = self.session.post(rights_url, json=payload, timeout=15)
         if rights_res.status_code != 200:
             raise Exception(
-                f"No se pudo obtener la licencia de audio de Suno (HTTP {rights_res.status_code})"
+                f"Failed to obtain Suno audio license (HTTP {rights_res.status_code})"
             )
 
         rights_data = rights_res.json()
@@ -266,13 +275,11 @@ class SunoScraper:
 
         # 3. Download the encrypted stream with progress
         if progress_callback:
-            progress_callback("descargando", 0, 0, 25.0)
+            progress_callback("Downloading", 0, 0, 25.0)
 
         res = self.session.get(stream_url, stream=True, timeout=30)
         if res.status_code != 200:
-            raise Exception(
-                f"Error al descargar stream de audio (HTTP {res.status_code})"
-            )
+            raise Exception(f"Error downloading audio stream (HTTP {res.status_code})")
 
         total_size = int(res.headers.get("content-length", 0))
         encrypted_chunks = []
@@ -284,15 +291,15 @@ class SunoScraper:
                 downloaded += len(chunk)
                 if progress_callback and total_size > 0:
                     pct = 25.0 + ((downloaded / total_size) * 50.0)
-                    progress_callback("descargando", downloaded, total_size, pct)
+                    progress_callback("Downloading", downloaded, total_size, pct)
 
         encrypted_data = b"".join(encrypted_chunks)
         if len(encrypted_data) < 50000:
-            raise Exception("El archivo descargado está incompleto o vacío.")
+            raise Exception("The downloaded file is incomplete or empty.")
 
         # 4. Decrypt with AES-128-CTR
         if progress_callback:
-            progress_callback("descifrando", downloaded, total_size, 80.0)
+            progress_callback("Decrypting", downloaded, total_size, 80.0)
 
         cipher = Cipher(
             algorithms.AES(content_key),
@@ -309,7 +316,7 @@ class SunoScraper:
 
         # 5. Convert to standard MP3 or Lossless WAV with FFmpeg
         if progress_callback:
-            progress_callback("convirtiendo", downloaded, total_size, 90.0)
+            progress_callback("Converting", downloaded, total_size, 90.0)
 
         fmt = audio_format.lower().strip()
         if fmt == "wav":
@@ -354,12 +361,12 @@ class SunoScraper:
             return fallback_m4a
 
         if progress_callback:
-            progress_callback("completado", downloaded, total_size, 100.0)
+            progress_callback("Completed", downloaded, total_size, 100.0)
 
         return output_audio_path
 
     def get_audio_duration(self, file_path: str) -> float:
-        """Obtiene la duración del archivo de audio en segundos mediante FFmpeg."""
+        """Gets the duration of the audio file in seconds using FFmpeg."""
         if not os.path.exists(file_path):
             return 0.0
         try:
@@ -382,14 +389,14 @@ class SunoScraper:
         apply_fade: bool = True,
     ) -> Dict[str, Any]:
         """
-        Genera una muestra/preview en MP3/WAV de una parte de la canción.
-        Si no se especifica duration_sec, se calcula automáticamente según la duración total:
-          - Si dura <= 60s: muestra de 30s.
-          - Si dura <= 180s (3m): muestra de 60s (1m).
-          - Si dura > 180s (ej. 4-5m): muestra de 120s (2m) o 45% del total.
+        Generates an MP3/WAV sample/preview of a portion of the song.
+        If duration_sec is not specified, it is automatically calculated based on the total duration:
+          - If duration is <= 60s: 30s sample.
+          - If duration is <= 180s (3m): 60s (1m) sample.
+          - If duration is > 180s (e.g., 4-5m): 120s (2m) sample or 45% of the total.
         """
         if not os.path.exists(input_mp3):
-            raise FileNotFoundError(f"El archivo de audio no existe: {input_mp3}")
+            raise FileNotFoundError(f"Audio file does not exist: {input_mp3}")
 
         total_duration = self.get_audio_duration(input_mp3)
 
@@ -457,9 +464,7 @@ class SunoScraper:
 
         conv_res = subprocess.run(cmd, capture_output=True, text=True)
         if conv_res.returncode != 0:
-            raise Exception(
-                f"Error al generar la muestra con FFmpeg: {conv_res.stderr}"
-            )
+            raise Exception(f"Error generating sample with FFmpeg: {conv_res.stderr}")
 
         sample_duration = self.get_audio_duration(output_sample_mp3)
 
@@ -484,8 +489,8 @@ class SunoScraper:
         progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
     ) -> Dict[str, Any]:
         """
-        Descarga y genera DIRECTAMENTE una muestra de audio (preview) a partir de una URL de Suno,
-        sin necesidad de guardar previamente la canción completa en el disco.
+        Directly downloads and generates an audio sample (preview) from a Suno URL,
+        without needing to save the full song to disk beforehand.
         """
         info = self.scrape_song_info(url)
         os.makedirs(output_dir, exist_ok=True)
@@ -539,7 +544,7 @@ class SunoScraper:
 
         try:
             if progress_callback:
-                progress_callback("conectando", 0, 0, 10.0)
+                progress_callback("Connecting", 0, 0, 10.0)
 
             rights_url = "https://audiopipe.suno.ai/rights"
             payload = {
@@ -549,7 +554,7 @@ class SunoScraper:
             rights_res = self.session.post(rights_url, json=payload, timeout=15)
             if rights_res.status_code != 200:
                 raise Exception(
-                    f"No se pudo obtener la licencia de audio de Suno (HTTP {rights_res.status_code})"
+                    f"Failed to obtain Suno audio license (HTTP {rights_res.status_code})"
                 )
 
             rights_data = rights_res.json()
@@ -568,12 +573,12 @@ class SunoScraper:
             content_iv = aes_gcm.decrypt(wrapped_iv[:12], wrapped_iv[12:], aad)
 
             if progress_callback:
-                progress_callback("descargando stream", 0, 0, 25.0)
+                progress_callback("Downloading Stream", 0, 0, 25.0)
 
             res = self.session.get(stream_url, stream=True, timeout=30)
             if res.status_code != 200:
                 raise Exception(
-                    f"Error al descargar stream de audio (HTTP {res.status_code})"
+                    f"Error downloading audio stream (HTTP {res.status_code})"
                 )
 
             total_size = int(res.headers.get("content-length", 0))
@@ -586,15 +591,15 @@ class SunoScraper:
                     if progress_callback and total_size > 0:
                         pct = 25.0 + ((downloaded / total_size) * 45.0)
                         progress_callback(
-                            "descargando stream", downloaded, total_size, pct
+                            "Downloading Stream", downloaded, total_size, pct
                         )
 
             encrypted_data = b"".join(encrypted_chunks)
             if len(encrypted_data) < 50000:
-                raise Exception("El flujo de audio descargado está incompleto o vacío.")
+                raise Exception("The downloaded audio stream is incomplete or empty.")
 
             if progress_callback:
-                progress_callback("descifrando", downloaded, total_size, 75.0)
+                progress_callback("Decrypting", downloaded, total_size, 75.0)
 
             cipher = Cipher(
                 algorithms.AES(content_key),
@@ -642,11 +647,11 @@ class SunoScraper:
                 )
             )
             output_sample_file = os.path.join(
-                output_dir, f"{base_name}_muestra_{dur_label}.{ext}"
+                output_dir, f"{base_name}_sample_{dur_label}.{ext}"
             )
 
             if progress_callback:
-                progress_callback("creando muestra", downloaded, total_size, 85.0)
+                progress_callback("Creating Sample", downloaded, total_size, 85.0)
 
             filters = []
             if apply_fade and calc_dur >= 4.0:
@@ -681,7 +686,7 @@ class SunoScraper:
             conv_res = subprocess.run(cmd, capture_output=True, text=True)
             if conv_res.returncode != 0:
                 raise Exception(
-                    f"Error al generar muestra con FFmpeg: {conv_res.stderr}"
+                    f"Error generating sample with FFmpeg: {conv_res.stderr}"
                 )
 
             sample_actual_duration = self.get_audio_duration(output_sample_file)
@@ -694,7 +699,7 @@ class SunoScraper:
                     cover_path = c_path
 
             if progress_callback:
-                progress_callback("completado", downloaded, total_size, 100.0)
+                progress_callback("Completed", downloaded, total_size, 100.0)
 
             return {
                 "info": info,
@@ -723,20 +728,20 @@ class SunoScraper:
         progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
     ) -> Dict[str, Any]:
         """
-        Separa una canción en dos pistas independientes:
-          1. Pista Instrumental (Música sin voz con graves y ritmos preservados)
-          2. Solo Voz (Acapella / Voces aisladas)
-        Utiliza procesamiento estéreo de fase M/S y filtros DSP crossover de alta precisión.
+        Separates a song into two independent tracks:
+          1. Instrumental Track (Music without vocals with bass and rhythms preserved)
+          2. Vocals Only (Acapella / Isolated vocals)
+        Uses M/S phase stereo processing and high-precision DSP crossover filters.
         """
         if not os.path.exists(input_audio):
-            raise FileNotFoundError(f"El archivo de audio no existe: {input_audio}")
+            raise FileNotFoundError(f"Audio file does not exist: {input_audio}")
 
         out_dir = output_dir or os.path.dirname(input_audio) or "downloads"
         os.makedirs(out_dir, exist_ok=True)
 
         base_name = os.path.splitext(os.path.basename(input_audio))[0]
         # Clean up previous suffixes if any
-        for suffix in ["_pista_instrumental", "_solo_voz", "_muestra"]:
+        for suffix in ["_instrumental_track", "_vocals_only", "_sample"]:
             if suffix in base_name:
                 base_name = base_name.split(suffix)[0]
 
@@ -754,27 +759,29 @@ class SunoScraper:
             else ["-c:a", "libmp3lame", "-b:a", "320k"]
         )
 
-        pista_path = os.path.join(out_dir, f"{base_name}_pista_instrumental.{fmt}")
-        voz_path = os.path.join(out_dir, f"{base_name}_solo_voz.{fmt}")
+        instrumental_path = os.path.join(
+            out_dir, f"{base_name}_instrumental_track.{fmt}"
+        )
+        vocals_path = os.path.join(out_dir, f"{base_name}_vocals_only.{fmt}")
 
         if (
-            os.path.exists(pista_path)
-            and os.path.exists(voz_path)
-            and os.path.getsize(pista_path) > 50000
-            and os.path.getsize(voz_path) > 50000
+            os.path.exists(instrumental_path)
+            and os.path.exists(vocals_path)
+            and os.path.getsize(instrumental_path) > 50000
+            and os.path.getsize(vocals_path) > 50000
         ):
-            dur = self.get_audio_duration(pista_path)
+            dur = self.get_audio_duration(instrumental_path)
             return {
-                "instrumental_path": pista_path,
-                "vocals_path": voz_path,
-                "instrumental_filename": os.path.basename(pista_path),
-                "vocals_filename": os.path.basename(voz_path),
+                "instrumental_path": instrumental_path,
+                "vocals_path": vocals_path,
+                "instrumental_filename": os.path.basename(instrumental_path),
+                "vocals_filename": os.path.basename(vocals_path),
                 "duration": dur,
                 "format": fmt,
             }
 
         if progress_callback:
-            progress_callback("separando instrumental", 0, 0, 20.0)
+            progress_callback("Separating Instrumental", 0, 0, 20.0)
 
         # Filter 1: Instrumental Track (Cancels center and preserves bass < 160Hz)
         inst_filter = (
@@ -795,15 +802,15 @@ class SunoScraper:
                 "[outa]",
             ]
             + codec_args
-            + [pista_path]
+            + [instrumental_path]
         )
 
         res_inst = subprocess.run(cmd_inst, capture_output=True, text=True)
         if res_inst.returncode != 0:
-            raise Exception(f"Error al generar pista instrumental: {res_inst.stderr}")
+            raise Exception(f"Error generating instrumental track: {res_inst.stderr}")
 
         if progress_callback:
-            progress_callback("separando voz", 0, 0, 60.0)
+            progress_callback("separating vocals", 0, 0, 60.0)
 
         # Filter 2: Vocals Only (Isolation of vocal formants and central frequencies)
         vocal_filter = (
@@ -824,29 +831,29 @@ class SunoScraper:
                 "[outa]",
             ]
             + codec_args
-            + [voz_path]
+            + [vocals_path]
         )
 
         res_vocal = subprocess.run(cmd_vocal, capture_output=True, text=True)
         if res_vocal.returncode != 0:
-            raise Exception(f"Error al aislar voz: {res_vocal.stderr}")
+            raise Exception(f"Error isolating vocals: {res_vocal.stderr}")
 
         if progress_callback:
-            progress_callback("completado", 0, 0, 100.0)
+            progress_callback("Completed", 0, 0, 100.0)
 
-        dur = self.get_audio_duration(pista_path)
+        dur = self.get_audio_duration(instrumental_path)
 
         return {
-            "instrumental_path": pista_path,
-            "vocals_path": voz_path,
-            "instrumental_filename": os.path.basename(pista_path),
-            "vocals_filename": os.path.basename(voz_path),
+            "instrumental_path": instrumental_path,
+            "vocals_path": vocals_path,
+            "instrumental_filename": os.path.basename(instrumental_path),
+            "vocals_filename": os.path.basename(vocals_path),
             "duration": dur,
             "format": fmt,
         }
 
     def download_cover(self, url: str, destination_path: str):
-        """Descarga la portada."""
+        """Downloads the cover art."""
         try:
             res = self.session.get(url, timeout=15)
             if res.status_code == 200:
@@ -866,7 +873,7 @@ class SunoScraper:
         save_metadata: bool = True,
         progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
     ) -> Dict[str, Any]:
-        """Descarga, descifra y procesa la canción completa en MP3 o WAV."""
+        """Downloads, decrypts, and processes the full song in MP3 or WAV format."""
         info = self.scrape_song_info(url)
         os.makedirs(output_dir, exist_ok=True)
 
@@ -897,7 +904,7 @@ class SunoScraper:
         if os.path.exists(audio_out) and os.path.getsize(audio_out) > 50000:
             final_audio_path = audio_out
             if progress_callback:
-                progress_callback("completado", 1, 1, 100.0)
+                progress_callback("Completed", 1, 1, 100.0)
         else:
             final_audio_path = self.decrypt_and_download(
                 song_id,
@@ -922,17 +929,17 @@ class SunoScraper:
         if save_metadata:
             meta_path = os.path.join(output_dir, f"{base_name}_info.txt")
             with open(meta_path, "w", encoding="utf-8") as f:
-                f.write(f"Título: {info['title']}\n")
-                f.write(f"ID Suno: {info['id']}\n")
-                f.write(f"Formato: {ext.upper()}\n")
-                f.write(f"Enlace Original: {info['source_url']}\n")
-                f.write(f"Tags / Estilo: {info['tags']}\n")
+                f.write(f"Title: {info['title']}\n")
+                f.write(f"Suno ID: {info['id']}\n")
+                f.write(f"Format: {ext.upper()}\n")
+                f.write(f"Original Link: {info['source_url']}\n")
+                f.write(f"Tags / Style: {info['tags']}\n")
                 dur_m = int(result["duration"] // 60)
                 dur_s = int(result["duration"] % 60)
-                f.write(f"Duración: {dur_m}:{dur_s:02d} ({result['duration']:.1f}s)\n")
+                f.write(f"Duration: {dur_m}:{dur_s:02d} ({result['duration']:.1f}s)\n")
                 f.write("-" * 50 + "\n")
-                f.write("LETRA / PROMPT:\n")
-                f.write(f"{info['prompt'] or 'No disponible'}\n")
+                f.write("LYRICS / PROMPT:\n")
+                f.write(f"{info['prompt'] or 'Not available'}\n")
             result["metadata_path"] = meta_path
 
         return result
@@ -942,38 +949,42 @@ def launch_cli():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Descargador, Descifrador y Separador de Pistas de Suno AI"
+        description="Suno AI Track Downloader, Decryptor and Separator"
     )
-    parser.add_argument("url", nargs="?", help="URL o ID de la canción de Suno")
+    parser.add_argument("url", nargs="?", help="Suno song URL or ID")
     parser.add_argument(
-        "-o", "--output", default="downloads", help="Carpeta de destino"
+        "-o", "--output", default="downloads", help="Destination folder"
     )
     parser.add_argument(
         "-f",
         "--format",
         choices=["mp3", "wav"],
         default="mp3",
-        help="Formato de audio: mp3 (320kbps) o wav (Lossless PCM)",
+        help="Audio format: mp3 (320kbps) or wav (Lossless PCM)",
     )
-    parser.add_argument("--no-cover", action="store_true", help="No descargar portada")
+    parser.add_argument(
+        "--no-cover", action="store_true", help="Do not download cover art"
+    )
     parser.add_argument(
         "--sample",
         nargs="?",
         const="auto",
         default=None,
-        help="Generar muestra de audio (ej: 30, 60, 120 o auto)",
+        help="Generate audio sample (e.g., 30, 60, 120 or auto)",
     )
     parser.add_argument(
         "--sample-only",
         action="store_true",
-        help="Descargar únicamente la muestra directa sin descargar la canción completa",
+        help="Download only the direct sample without downloading the full song",
     )
     parser.add_argument(
         "--separate",
         action="store_true",
-        help="Separar audio en pista instrumental y solo voz",
+        help="Separate audio into instrumental and vocal-only tracks",
     )
-    parser.add_argument("--gui", action="store_true", help="Abrir interfaz gráfica")
+    parser.add_argument(
+        "--gui", action="store_true", help="Open graphical user interface"
+    )
 
     args = parser.parse_args()
 
@@ -983,7 +994,7 @@ def launch_cli():
 
     if not args.url:
         print(
-            "Uso: python suno_downloader.py https://suno.com/song/ID_DE_LA_CANCION [-f wav] [--separate] [--sample 120] [--sample-only]"
+            "Usage: python suno_downloader.py https://suno.com/song/SONG_ID [-f wav] [--separate] [--sample 120] [--sample-only]"
         )
         return
 
@@ -1000,7 +1011,7 @@ def launch_cli():
                     end="",
                 )
             else:
-                print(f"\r[{stage.upper()}] Procesando...", end="")
+                print(f"\r[{stage.upper()}] Processing...", end="")
 
         if args.sample_only:
             dur_req = None
@@ -1010,7 +1021,7 @@ def launch_cli():
                 except ValueError:
                     dur_req = None
             print(
-                f"\n✂️ Descargando DIRECTAMENTE muestra ({args.format.upper()}) sin guardar canción completa: {args.url}"
+                f"\n✂️ DIRECTLY downloading sample ({args.format.upper()}) without saving full song: {args.url}"
             )
             sample_res = scraper.download_sample_direct(
                 args.url,
@@ -1020,18 +1031,18 @@ def launch_cli():
                 save_cover=not args.no_cover,
                 progress_callback=progress_cb,
             )
-            print(f"\n\n✅ ¡Muestra generada sin descargar la canción completa!")
-            print(f"🎵 Título: {sample_res['info']['title']}")
+            print(f"\n\n✅ Sample generated without downloading the full song!")
+            print(f"🎵 Title: {sample_res['info']['title']}")
             print(
-                f"✂️ Duración de la muestra: {sample_res['actual_sample_duration']:.1f}s (Total: {sample_res['total_duration']:.1f}s)"
+                f"✂️ Sample duration: {sample_res['actual_sample_duration']:.1f}s (Total: {sample_res['total_duration']:.1f}s)"
             )
-            print(f"🎧 Archivo de muestra: {sample_res['sample_path']}")
+            print(f"🎧 Sample file: {sample_res['sample_path']}")
             if sample_res.get("cover_path"):
-                print(f"🖼️ Portada: {sample_res['cover_path']}")
+                print(f"🖼️ Cover: {sample_res['cover_path']}")
             return
 
         print(
-            f"\n🎵 Conectando y descifrando canción de Suno ({args.format.upper()}): {args.url}"
+            f"\n🎵 Connecting and decrypting Suno song ({args.format.upper()}): {args.url}"
         )
         res = scraper.download_song(
             args.url,
@@ -1041,17 +1052,17 @@ def launch_cli():
             progress_callback=progress_cb,
         )
         print(
-            f"\n\n✅ ¡Descarga y descifrado completados en formato {args.format.upper()}!"
+            f"\n\n✅ Download and decryption completed in {args.format.upper()} format!"
         )
-        print(f"🎵 Título: {res['info']['title']}")
+        print(f"🎵 Title: {res['info']['title']}")
         dur_m = int(res["duration"] // 60)
         dur_s = int(res["duration"] % 60)
-        print(f"⏱️ Duración total: {dur_m}:{dur_s:02d} ({res['duration']:.1f}s)")
-        print(f"🎧 Archivo de audio ({args.format.upper()}): {res['audio_path']}")
+        print(f"⏱️ Total duration: {dur_m}:{dur_s:02d} ({res['duration']:.1f}s)")
+        print(f"🎧 Audio file ({args.format.upper()}): {res['audio_path']}")
         if res.get("cover_path"):
-            print(f"🖼️ Portada: {res['cover_path']}")
+            print(f"🖼️ Cover: {res['cover_path']}")
         if res.get("metadata_path"):
-            print(f"📄 Letra y Metadatos: {res['metadata_path']}")
+            print(f"📄 Lyrics and Metadata: {res['metadata_path']}")
 
         # If a sample was requested via command
         if args.sample:
@@ -1065,24 +1076,29 @@ def launch_cli():
                 res["audio_path"], duration_sec=dur_req
             )
             print(
-                f"✂️ Muestra generada ({sample_res['actual_sample_duration']:.1f}s): {sample_res['sample_path']}"
+                f"✂️ Sample generated ({sample_res['actual_sample_duration']:.1f}s): {sample_res['sample_path']}"
             )
 
         # If track and vocal separation was requested
         if args.separate:
-            print("\n🎤 Separando pista instrumental y solo voz...")
+            print("\n🎤 Separating instrumental track and vocals...")
             sep_res = scraper.separate_vocals_and_instrumental(
                 res["audio_path"], output_format=args.format
             )
-            print(f"🎹 Pista Instrumental: {sep_res['instrumental_path']}")
-            print(f"🎙️ Solo Voz (Acapella): {sep_res['vocals_path']}")
+            print(f"🎹 Instrumental Track: {sep_res['instrumental_path']}")
+            print(f"🎙️ Vocals Only (Acapella): {sep_res['vocals_path']}")
 
     except Exception as e:
-        print(f"\n❌ Error durante la descarga: {e}")
+        print(f"\n❌ Error during download: {e}")
 
 
 def launch_gui():
-    """Lanza la interfaz gráfica de usuario en Tkinter."""
+    """
+    Launches the Tkinter graphical user interface.
+
+    #TODO For now i will not touch this function
+    i want my cli to work first properly then come to check this later
+    """
     import tkinter as tk
     from tkinter import ttk, messagebox, filedialog
     import threading
