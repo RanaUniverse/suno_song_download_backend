@@ -2,7 +2,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-downloads/
+downloads*/
 *.tmp
 *.log
 .env
