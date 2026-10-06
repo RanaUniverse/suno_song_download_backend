@@ -57,10 +57,10 @@ os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
 def cleanup_old_files(max_age_seconds: int = 300, max_folder_mb: int = 150):
     """
-    Elimina archivos de DOWNLOADS_DIR:
-    1. Que tengan una antigüedad mayor a max_age_seconds (por defecto 5 minutos / 300s).
-    2. Si el peso total de la carpeta supera max_folder_mb (150 MB), purga los más antiguos
-       hasta dejarla en un tamaño seguro (< 80 MB) para no saturar los 512 MB de Render.
+    Removes files from DOWNLOADS_DIR:
+    1. Files older than max_age_seconds (5 minutes / 300s by default).
+    2. If the total folder size exceeds max_folder_mb (150 MB), removes the oldest files
+       until it reaches a safe size (< 80 MB), avoiding exhaustion of Render's 512 MB limit.
     """
     try:
         if not os.path.exists(DOWNLOADS_DIR):
@@ -104,7 +104,7 @@ def cleanup_old_files(max_age_seconds: int = 300, max_folder_mb: int = 150):
 
 
 async def delayed_remove_file(file_path: str, delay_sec: int = 300):
-    """Espera delay_sec segundos (por defecto 5 min) y elimina el archivo para liberar espacio en Render."""
+    """Waits delay_sec seconds (5 min by default), then removes the file to free Render space."""
     await asyncio.sleep(delay_sec)
     try:
         if os.path.exists(file_path):
@@ -115,7 +115,7 @@ async def delayed_remove_file(file_path: str, delay_sec: int = 300):
 
 @app.on_event("startup")
 async def start_periodic_cleanup():
-    """Limpia archivos viejos al iniciar y ejecuta la limpieza cada 60 segundos en segundo plano."""
+    """Cleans old files at startup and runs cleanup every 60 seconds in the background."""
     cleanup_old_files(max_age_seconds=300)
 
     async def loop():
@@ -127,7 +127,7 @@ async def start_periodic_cleanup():
 
 
 def get_local_ip() -> str:
-    """Detecta la IP local de la computadora en la red Wi-Fi."""
+    """Detects the computer's local IP on the Wi-Fi network."""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
@@ -157,11 +157,11 @@ class SeparateRequest(BaseModel):
 
 HTML_MOBILE_UI = """
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Suno AI Downloader & Separador de Pistas HQ</title>
+    <title>Suno AI Downloader & HQ Track Separator</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -667,7 +667,7 @@ HTML_MOBILE_UI = """
             margin-top: 10px;
         }
 
-        /* Sample Section (Muestra de Audio) */
+        /* Sample Section (Audio Sample) */
         .sample-section {
             background: var(--card-inner);
             border: 1px solid rgba(121, 40, 202, 0.35);
@@ -925,10 +925,10 @@ HTML_MOBILE_UI = """
     <div class="container">
         <header>
             <div class="logo-badge">⚡ Suno Downloader HQ</div>
-            <h1>Descargar & Separar Pistas</h1>
-            <p class="subtitle">Visualiza, escucha en línea y descarga en MP3/WAV o separa voz e instrumental</p>
+            <h1>Download & Separate Tracks</h1>
+            <p class="subtitle">Preview, listen online, and download in MP3/WAV, or separate vocals and instrumental</p>
             <div class="server-status-pill">
-                🛡️ Modo Servidor Efímero: Las descargas y muestras se eliminan automáticamente tras 5 minutos para ahorrar espacio.
+                🛡️ Ephemeral Server Mode: Downloads and samples are automatically removed after 5 minutes to save space.
             </div>
         </header>
 
@@ -945,11 +945,11 @@ HTML_MOBILE_UI = """
 
             <div class="input-group">
                 <input type="text" id="sunoUrl" placeholder="https://suno.com/song/..." autocomplete="off">
-                <button class="paste-btn" onclick="pasteFromClipboard()">Pegar</button>
+                <button class="paste-btn" onclick="pasteFromClipboard()">Paste</button>
             </div>
 
             <button class="btn-download" id="btnDownload" onclick="startDownload()">
-                <span>🎧 CARGAR, ESCUCHAR Y DESCARGAR</span>
+                <span>🎧 LOAD, LISTEN, AND DOWNLOAD</span>
             </button>
 
             <div id="statusBadge" class="status-badge" style="display: none;"></div>
@@ -960,8 +960,8 @@ HTML_MOBILE_UI = """
                 <div class="song-info">
                     <img id="resCover" class="cover-img" src="" alt="Cover">
                     <div class="song-details">
-                        <div class="song-title" id="resTitle">Título</div>
-                        <div class="song-tags" id="resTags">Estilo</div>
+                        <div class="song-title" id="resTitle">Title</div>
+                        <div class="song-tags" id="resTags">Style</div>
                         <div class="badges-row">
                             <span class="song-duration-badge" id="resDuration">⏱️ 0:00</span>
                             <span class="song-format-badge" id="resFormat">MP3</span>
@@ -972,16 +972,16 @@ HTML_MOBILE_UI = """
                 <!-- Full Track Player with Soundwave -->
                 <div class="player-box">
                     <div class="player-header">
-                        <span class="player-title">🎵 Reproducir Canción Completa</span>
+                        <span class="player-title">🎵 Play Full Song</span>
                         <div class="soundwave" id="waveMain">
                             <span></span><span></span><span></span><span></span>
                         </div>
                     </div>
                     <audio id="resAudio" class="audio-player" controls preload="metadata" onplay="setWave('waveMain', true)" onpause="setWave('waveMain', false)" onended="setWave('waveMain', false)">
-                        Tu navegador no soporta el reproductor de audio.
+                        Your browser does not support the audio player.
                     </audio>
                     <a id="resDownloadLink" class="btn-save-phone" href="" download>
-                        📥 Guardar Canción Completa
+                        📥 Save Full Song
                     </a>
                 </div>
 
@@ -989,16 +989,16 @@ HTML_MOBILE_UI = """
                 <div class="stem-section">
                     <div class="stem-header">
                         <div class="stem-title">
-                            <span>🎤 Separar Pista y Voz (Stems)</span>
+                            <span>🎤 Separate Track and Vocals (Stems)</span>
                         </div>
                         <span class="stem-tag">AI DSP</span>
                     </div>
                     <p class="stem-desc">
-                        Separa la música en dos pistas individuales para escucharlas en línea antes de guardarlas:
+                        Separate the music into two individual tracks to listen online before saving:
                     </p>
 
                     <button class="btn-create-stem" id="btnCreateStem" onclick="separateStems()">
-                        <span>✨ SEPARAR EN PISTA Y VOZ</span>
+                        <span>✨ SEPARATE INTO TRACK AND VOCALS</span>
                     </button>
 
                     <!-- Stem Results Sub-Box -->
@@ -1007,16 +1007,16 @@ HTML_MOBILE_UI = """
                         <div class="stem-card">
                             <div class="stem-card-header">
                                 <div class="stem-card-title inst">
-                                    <span>🎹 Pista Instrumental (Música / Karaoke)</span>
+                                    <span>🎹 Instrumental Track (Music / Karaoke)</span>
                                 </div>
                                 <div class="soundwave" id="waveInst">
                                     <span></span><span></span><span></span><span></span>
                                 </div>
                             </div>
-                            <div class="stem-card-desc">Escucha el instrumental sin voz (graves y bombos intactos):</div>
+                            <div class="stem-card-desc">Listen to the vocal-free instrumental (bass and kick drums intact):</div>
                             <audio id="instAudioPlayer" class="audio-player" controls preload="metadata" onplay="setWave('waveInst', true)" onpause="setWave('waveInst', false)" onended="setWave('waveInst', false)"></audio>
                             <a id="instDownloadLink" class="btn-save-stem-inst" href="" download>
-                                📥 Guardar Pista Instrumental
+                                📥 Save Instrumental Track
                             </a>
                         </div>
 
@@ -1024,16 +1024,16 @@ HTML_MOBILE_UI = """
                         <div class="stem-card">
                             <div class="stem-card-header">
                                 <div class="stem-card-title vocal">
-                                    <span>🎙️ Solo Voz (Acapella / Vocales)</span>
+                                    <span>🎙️ Vocals Only (Acapella / Vocals)</span>
                                 </div>
                                 <div class="soundwave" id="waveVocal">
                                     <span></span><span></span><span></span><span></span>
                                 </div>
                             </div>
-                            <div class="stem-card-desc">Escucha la pista vocal limpia y aislada:</div>
+                            <div class="stem-card-desc">Listen to the clean, isolated vocal track:</div>
                             <audio id="vocalAudioPlayer" class="audio-player" controls preload="metadata" onplay="setWave('waveVocal', true)" onpause="setWave('waveVocal', false)" onended="setWave('waveVocal', false)"></audio>
                             <a id="vocalDownloadLink" class="btn-save-stem-vocal" href="" download>
-                                📥 Guardar Solo Voz
+                                📥 Save Vocals Only
                             </a>
                         </div>
                     </div>
@@ -1043,12 +1043,12 @@ HTML_MOBILE_UI = """
                 <div class="sample-section">
                     <div class="sample-header">
                         <div class="sample-title">
-                            <span>✂️ Muestra Recortada (Preview)</span>
+                            <span>✂️ Trimmed Sample (Preview)</span>
                         </div>
                         <span class="sample-tag">Clip</span>
                     </div>
                     <p class="sample-desc" id="sampleDescText">
-                        Genera un fragmento de la canción con suavizado para preescucha rápida:
+                        Generate a song excerpt with fade processing for a quick preview:
                     </p>
 
                     <div class="preset-grid">
@@ -1059,14 +1059,14 @@ HTML_MOBILE_UI = """
                     </div>
 
                     <button class="btn-create-sample" id="btnCreateSample" onclick="generateSample()">
-                        <span>✂️ GENERAR MUESTRA</span>
+                        <span>✂️ GENERATE SAMPLE</span>
                     </button>
 
                     <!-- Sample Result Sub-Box -->
                     <div class="sample-result-box" id="sampleResultBox">
                         <div class="player-header" style="margin-bottom: 6px;">
                             <span style="font-size: 12px; color: var(--accent); font-weight: 600;" id="sampleResultLabel">
-                                🎧 Escuchar Muestra:
+                                🎧 Listen to Sample:
                             </span>
                             <div class="soundwave" id="waveSample">
                                 <span></span><span></span><span></span><span></span>
@@ -1074,7 +1074,7 @@ HTML_MOBILE_UI = """
                         </div>
                         <audio id="sampleAudioPlayer" class="audio-player" controls preload="metadata" onplay="setWave('waveSample', true)" onpause="setWave('waveSample', false)" onended="setWave('waveSample', false)"></audio>
                         <a id="sampleDownloadLink" class="btn-save-sample" href="" download>
-                            📥 Guardar Muestra
+                            📥 Save Sample
                         </a>
                     </div>
                 </div>
@@ -1082,7 +1082,7 @@ HTML_MOBILE_UI = """
             </div>
         </div>
 
-        <div class="history-title">📂 Archivos en tu Servidor</div>
+        <div class="history-title">📂 Files on Your Server</div>
         <div id="historyList"></div>
     </div>
 
@@ -1113,7 +1113,7 @@ HTML_MOBILE_UI = """
                     document.getElementById('sunoUrl').value = text.trim();
                 }
             } catch (err) {
-                alert('Toca la caja de texto y mantén presionado para pegar.');
+                alert('Tap and hold the text box to paste.');
             }
         }
 
@@ -1125,7 +1125,7 @@ HTML_MOBILE_UI = """
             }
         }
 
-        // Permitir presionar Enter en el input
+        // Allow Enter to be pressed in the input
         document.addEventListener("DOMContentLoaded", () => {
             const inp = document.getElementById('sunoUrl');
             if (inp) {
@@ -1142,7 +1142,7 @@ HTML_MOBILE_UI = """
             const urlInput = document.getElementById('sunoUrl');
             const url = urlInput.value.trim();
             if (!url) {
-                alert('Por favor pega un enlace de Suno.');
+                alert('Please paste a Suno link.');
                 return;
             }
 
@@ -1153,9 +1153,9 @@ HTML_MOBILE_UI = """
             const sampleResultBox = document.getElementById('sampleResultBox');
 
             btn.disabled = true;
-            btn.innerHTML = `<div class="spinner"></div> Procesando audio (${selectedFormat.toUpperCase()})...`;
+            btn.innerHTML = `<div class="spinner"></div> Processing audio (${selectedFormat.toUpperCase()})...`;
             statusBadge.style.display = 'block';
-            statusBadge.innerText = `Conectando con Suno y descifrando audio (${selectedFormat.toUpperCase()})...`;
+            statusBadge.innerText = `Connecting to Suno and decrypting audio (${selectedFormat.toUpperCase()})...`;
             
             stemResultBox.style.display = 'none';
             sampleResultBox.style.display = 'none';
@@ -1175,7 +1175,7 @@ HTML_MOBILE_UI = """
                 const data = await response.json();
 
                 if (!response.ok || data.error) {
-                    throw new Error(data.error || 'Error al procesar la canción.');
+                    throw new Error(data.error || 'Error processing the song.');
                 }
 
                 currentFilename = data.filename;
@@ -1195,14 +1195,14 @@ HTML_MOBILE_UI = """
                 const dlLink = document.getElementById('resDownloadLink');
                 dlLink.href = data.download_url;
                 dlLink.setAttribute('download', data.filename);
-                dlLink.innerHTML = `📥 Guardar Canción Completa (${(data.format || selectedFormat).toUpperCase()})`;
+                dlLink.innerHTML = `📥 Save Full Song (${(data.format || selectedFormat).toUpperCase()})`;
 
                 // Update sample description with suggested duration
-                const suggestedDur = data.suggested_sample_formatted || '1-2 minutos';
+                const suggestedDur = data.suggested_sample_formatted || '1-2 minutes';
                 document.getElementById('sampleDescText').innerText = 
-                    `Canción de ${data.duration_formatted || 'duración estándar'}. Duración de muestra sugerida: ${suggestedDur}.`;
+                    `Song duration: ${data.duration_formatted || 'standard duration'}. Suggested sample duration: ${suggestedDur}.`;
 
-                statusBadge.innerText = `✅ ¡Canción lista para escuchar y descargar en ${selectedFormat.toUpperCase()}!`;
+                statusBadge.innerText = `✅ Song ready to listen to and download in ${selectedFormat.toUpperCase()}!`;
                 resultBox.style.display = 'block';
                 resultBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
@@ -1211,19 +1211,19 @@ HTML_MOBILE_UI = """
             } catch (err) {
                 console.error(err);
                 const isAbort = err.name === 'AbortError';
-                const msg = isAbort ? 'El servidor tardó en responder. Comprueba si el archivo ya está en la lista de abajo.' : err.message;
-                alert('Aviso: ' + msg);
+                const msg = isAbort ? 'The server took too long to respond. Check whether the file is already in the list below.' : err.message;
+                alert('Notice: ' + msg);
                 statusBadge.innerText = '⚠️ ' + msg;
                 try { await loadHistory(); } catch(e) {}
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<span>🎧 CARGAR, ESCUCHAR Y DESCARGAR</span>';
+                btn.innerHTML = '<span>🎧 LOAD, LISTEN, AND DOWNLOAD</span>';
             }
         }
 
         async function separateStems() {
             if (!currentFilename) {
-                alert('Primero carga una canción.');
+                alert('Load a song first.');
                 return;
             }
 
@@ -1235,7 +1235,7 @@ HTML_MOBILE_UI = """
             const vocalDlLink = document.getElementById('vocalDownloadLink');
 
             btn.disabled = true;
-            btn.innerHTML = '<div class="spinner"></div> Separando Pista y Voz con DSP...';
+            btn.innerHTML = '<div class="spinner"></div> Separating Track and Vocals with DSP...';
 
             try {
                 const controller = new AbortController();
@@ -1255,7 +1255,7 @@ HTML_MOBILE_UI = """
                 const data = await response.json();
 
                 if (!response.ok || data.error) {
-                    throw new Error(data.error || 'Error al separar la pista y la voz.');
+                    throw new Error(data.error || 'Error separating the track and vocals.');
                 }
 
                 instAudio.src = data.instrumental_url;
@@ -1274,16 +1274,16 @@ HTML_MOBILE_UI = """
 
             } catch (err) {
                 console.error(err);
-                alert('Error al separar: ' + err.message);
+                alert('Error separating: ' + err.message);
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<span>✨ SEPARAR EN PISTA Y VOZ</span>';
+                btn.innerHTML = '<span>✨ SEPARATE INTO TRACK AND VOCALS</span>';
             }
         }
 
         async function generateSample() {
             if (!currentFilename) {
-                alert('Primero carga una canción.');
+                alert('Load a song first.');
                 return;
             }
 
@@ -1294,7 +1294,7 @@ HTML_MOBILE_UI = """
             const sampleLabel = document.getElementById('sampleResultLabel');
 
             btn.disabled = true;
-            btn.innerHTML = '<div class="spinner spinner-dark"></div> Recortando muestra con FFmpeg...';
+            btn.innerHTML = '<div class="spinner spinner-dark"></div> Trimming sample with FFmpeg...';
 
             try {
                 const response = await fetch('/api/sample', {
@@ -1309,24 +1309,24 @@ HTML_MOBILE_UI = """
                 const data = await response.json();
 
                 if (!response.ok || data.error) {
-                    throw new Error(data.error || 'Error al generar la muestra.');
+                    throw new Error(data.error || 'Error generating the sample.');
                 }
 
                 sampleAudio.src = data.sample_url;
                 try { sampleAudio.load(); } catch(e) {}
                 sampleDlLink.href = data.sample_url;
                 sampleDlLink.setAttribute('download', data.filename);
-                sampleLabel.innerText = `🎧 Muestra lista (${Math.round(data.sample_duration)}s):`;
+                sampleLabel.innerText = `🎧 Sample ready (${Math.round(data.sample_duration)}s):`;
 
                 sampleResultBox.style.display = 'block';
                 sampleResultBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 try { await loadHistory(); } catch(e) {}
 
             } catch (err) {
-                alert('Error al generar muestra: ' + err.message);
+                alert('Error generating sample: ' + err.message);
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<span>✂️ GENERAR MUESTRA</span>';
+                btn.innerHTML = '<span>✂️ GENERATE SAMPLE</span>';
             }
         }
 
@@ -1338,15 +1338,15 @@ HTML_MOBILE_UI = """
                 list.innerHTML = '';
                 
                 if (files.length === 0) {
-                    list.innerHTML = '<div style="color:#71717a; font-size:12px; text-align:center;">No hay descargas recientes aún.</div>';
+                    list.innerHTML = '<div style="color:#71717a; font-size:12px; text-align:center;">No recent downloads yet.</div>';
                     return;
                 }
 
                 files.forEach(f => {
                     const item = document.createElement('div');
-                    const isInst = f.name.includes('_pista_instrumental');
-                    const isVocal = f.name.includes('_solo_voz');
-                    const isSample = f.name.includes('_muestra_');
+                    const isInst = f.name.includes('_instrumental_track');
+                    const isVocal = f.name.includes('_vocals_only');
+                    const isSample = f.name.includes('_sample');
                     const isWav = f.filename.endsWith('.wav');
 
                     let itemClass = 'history-item';
@@ -1357,10 +1357,10 @@ HTML_MOBILE_UI = """
                         badge += '<span class="history-badge inst">🎹 Instrumental</span>';
                     } else if (isVocal) {
                         itemClass += ' is-vocal';
-                        badge += '<span class="history-badge vocal">🎙️ Voz</span>';
+                        badge += '<span class="history-badge vocal">🎙️ Vocals</span>';
                     } else if (isSample) {
                         itemClass += ' is-sample';
-                        badge += '<span class="history-badge sample">✂️ Muestra</span>';
+                        badge += '<span class="history-badge sample">✂️ Sample</span>';
                     }
 
                     if (isWav) {
@@ -1372,7 +1372,7 @@ HTML_MOBILE_UI = """
                     item.className = itemClass;
                     item.innerHTML = `
                         <span class="history-name">${badge} ${f.name}</span>
-                        <a class="history-btn" href="/downloads/${encodeURIComponent(f.filename)}" download>Descargar</a>
+                        <a class="history-btn" href="/downloads/${encodeURIComponent(f.filename)}" download>Download</a>
                     `;
                     list.appendChild(item);
                 });
@@ -1381,7 +1381,7 @@ HTML_MOBILE_UI = """
             }
         }
 
-        // Cargar historial al iniciar
+        // Load history at startup
         loadHistory();
     </script>
 </body>
@@ -1399,7 +1399,7 @@ async def api_download(req: DownloadRequest, background_tasks: BackgroundTasks):
     try:
         url = req.url.strip()
         if not url:
-            raise HTTPException(status_code=400, detail="URL requerida")
+            raise HTTPException(status_code=400, detail="URL required")
 
         fmt = (req.format or "mp3").lower().strip()
         res = scraper.download_song(url, output_dir=DOWNLOADS_DIR, audio_format=fmt)
@@ -1419,7 +1419,7 @@ async def api_download(req: DownloadRequest, background_tasks: BackgroundTasks):
         suggested_formatted = (
             f"{int(suggested_sec // 60)} min"
             if suggested_sec >= 60
-            else f"{int(suggested_sec)} seg"
+            else f"{int(suggested_sec)} sec"
         )
 
         cover_url = ""
@@ -1456,16 +1456,16 @@ async def api_download(req: DownloadRequest, background_tasks: BackgroundTasks):
 
 @app.post("/api/separate")
 async def api_separate_stems(req: SeparateRequest, background_tasks: BackgroundTasks):
-    """Separa la canción en Pista Instrumental y Solo Voz."""
+    """Separates the song into Instrumental Track and Vocals Only."""
     try:
         filename = req.filename.strip()
         if not filename:
-            raise HTTPException(status_code=400, detail="Nombre de archivo requerido")
+            raise HTTPException(status_code=400, detail="Filename required")
 
         input_path = os.path.join(DOWNLOADS_DIR, filename)
         if not os.path.exists(input_path):
             raise HTTPException(
-                status_code=404, detail="El archivo no existe en descargas"
+                status_code=404, detail="The file does not exist in downloads"
             )
 
         fmt = (
@@ -1504,16 +1504,16 @@ async def api_separate_stems(req: SeparateRequest, background_tasks: BackgroundT
 
 @app.post("/api/sample")
 async def api_generate_sample(req: SampleRequest, background_tasks: BackgroundTasks):
-    """Genera una muestra/preview de una canción existente."""
+    """Generates a sample/preview from an existing song."""
     try:
         filename = req.filename.strip()
         if not filename:
-            raise HTTPException(status_code=400, detail="Nombre de archivo requerido")
+            raise HTTPException(status_code=400, detail="Filename required")
 
         input_path = os.path.join(DOWNLOADS_DIR, filename)
         if not os.path.exists(input_path):
             raise HTTPException(
-                status_code=404, detail="El archivo base no existe en descargas"
+                status_code=404, detail="The source file does not exist in downloads"
             )
 
         total_dur = scraper.get_audio_duration(input_path)
@@ -1560,7 +1560,7 @@ async def api_generate_sample(req: SampleRequest, background_tasks: BackgroundTa
 async def download_file_endpoint(filename: str, background_tasks: BackgroundTasks):
     file_path = os.path.join(DOWNLOADS_DIR, filename)
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+        raise HTTPException(status_code=404, detail="File not found")
 
     media_type = "application/octet-stream"
     if filename.endswith(".mp3"):
@@ -1607,12 +1607,12 @@ def run_server():
     mobile_url = f"http://{local_ip}:{port}"
 
     print("\n" + "=" * 58)
-    print(" 🚀 SERVIDOR MÓVIL DE SUNO AI ACTIVADO (HQ)")
+    print(" 🚀 SUNO AI MOBILE SERVER ACTIVATED (HQ)")
     print("=" * 58)
-    print(f"\n📲 ABRE ESTE ENLACE EN EL NAVEGADOR DE TU CELULAR:\n")
+    print(f"\n📲 OPEN THIS LINK IN YOUR PHONE'S BROWSER:\n")
     print(f"👉 \033[92m{mobile_url}\033[0m\n")
     print("=" * 58)
-    print("📷 O ESCANEA ESTE CÓDIGO QR CON LA CÁMARA DE TU CELULAR:")
+    print("📷 OR SCAN THIS QR CODE WITH YOUR PHONE'S CAMERA:")
     print("=" * 58 + "\n")
 
     try:
@@ -1624,8 +1624,8 @@ def run_server():
         pass
 
     print("\n" + "-" * 58)
-    print("💡 Asegúrate de que tu celular esté conectado al mismo Wi-Fi.")
-    print("Presiona Ctrl + C en esta ventana para detener el servidor.")
+    print("💡 Make sure your phone is connected to the same Wi-Fi network.")
+    print("Press Ctrl + C in this window to stop the server.")
     print("-" * 58 + "\n")
 
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
