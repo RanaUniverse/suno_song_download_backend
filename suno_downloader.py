@@ -40,10 +40,12 @@ DEFAULT_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
     "Referer": "https://suno.com/",
-    "Origin": "https://suno.com"
+    "Origin": "https://suno.com",
 }
 
-UUID_REGEX = re.compile(r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})", re.IGNORECASE)
+UUID_REGEX = re.compile(
+    r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})", re.IGNORECASE
+)
 
 
 def sanitize_filename(name: str) -> str:
@@ -69,14 +71,16 @@ class SunoScraper:
             "User-Agent": DEFAULT_HEADERS["User-Agent"],
             "Accept": "application/json, text/plain, */*",
             "Referer": "https://suno.com/",
-            "Origin": "https://suno.com"
+            "Origin": "https://suno.com",
         }
         for ep in endpoints:
             try:
                 res = self.session.get(ep, headers=headers, timeout=8)
                 if res.status_code == 200:
                     data = res.json()
-                    cid = data.get("content_id") or data.get("clip_id") or data.get("id")
+                    cid = (
+                        data.get("content_id") or data.get("clip_id") or data.get("id")
+                    )
                     if cid and UUID_REGEX.search(str(cid)):
                         return str(cid)
             except Exception:
@@ -115,7 +119,12 @@ class SunoScraper:
         final_url = response.url
 
         # Check if it redirected to the Suno homepage (broken, private, or expired link)
-        is_home_redirect = final_url.rstrip("/") in ("https://suno.com", "http://suno.com", "https://suno.ai", "http://suno.ai")
+        is_home_redirect = final_url.rstrip("/") in (
+            "https://suno.com",
+            "http://suno.com",
+            "https://suno.ai",
+            "http://suno.ai",
+        )
         if is_home_redirect and not song_id:
             if share_match or "/s/" in url:
                 raise ValueError(
@@ -162,33 +171,49 @@ class SunoScraper:
         }
 
         # Extract Title
-        og_title = soup.find("meta", property="og:title") or soup.find("meta", {"name": "twitter:title"})
+        og_title = soup.find("meta", property="og:title") or soup.find(
+            "meta", {"name": "twitter:title"}
+        )
         if og_title and og_title.get("content"):
-            title_clean = og_title["content"].replace(" | Suno", "").replace(" on Suno", "").strip()
+            title_clean = (
+                og_title["content"]
+                .replace(" | Suno", "")
+                .replace(" on Suno", "")
+                .strip()
+            )
             if title_clean:
                 info["title"] = title_clean
 
         # Extract Cover Image
-        og_image = soup.find("meta", property="og:image") or soup.find("meta", {"name": "twitter:image"})
+        og_image = soup.find("meta", property="og:image") or soup.find(
+            "meta", {"name": "twitter:image"}
+        )
         if og_image and og_image.get("content"):
             info["image_url"] = og_image["content"]
 
         # Extract Description / Prompt
-        og_desc = soup.find("meta", property="og:description") or soup.find("meta", {"name": "description"})
+        og_desc = soup.find("meta", property="og:description") or soup.find(
+            "meta", {"name": "description"}
+        )
         if og_desc and og_desc.get("content"):
             info["prompt"] = og_desc["content"]
 
         # Extract Style Tags
-        tags_match = re.search(r'\"tags\"\s*:\s*\"([^\"]+)\"', html)
+        tags_match = re.search(r"\"tags\"\s*:\s*\"([^\"]+)\"", html)
         if tags_match:
             info["tags"] = tags_match.group(1)
 
         # Search for CloudFront audio URL in the HTML
-        cf_matches = re.findall(r'https?://[^\s"\'<>\\]+\.cloudfront\.net/[^\s"\'<>\\]+\.(?:m4a|mp3|wav)', html)
+        cf_matches = re.findall(
+            r'https?://[^\s"\'<>\\]+\.cloudfront\.net/[^\s"\'<>\\]+\.(?:m4a|mp3|wav)',
+            html,
+        )
         if cf_matches:
             info["audio_url"] = cf_matches[0]
         elif song_id:
-            info["audio_url"] = f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
+            info["audio_url"] = (
+                f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
+            )
 
         if not info["image_url"] and song_id:
             info["image_url"] = f"https://cdn2.suno.ai/image_large_{song_id}.jpeg"
@@ -201,7 +226,7 @@ class SunoScraper:
         stream_url: str,
         output_audio_path: str,
         audio_format: str = "mp3",
-        progress_callback: Optional[Callable[[str, int, int, float], None]] = None
+        progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
     ) -> str:
         """
         Descifra el audio de Suno usando el sistema Mango (AES-GCM unwrapping + AES-128-CTR stream decryption)
@@ -212,15 +237,12 @@ class SunoScraper:
 
         # 1. Get Mango license keys
         rights_url = "https://studio-api.prod.suno.com/api/mango/rights"
-        payload = {
-            "content_params": {
-                "content_id": song_id,
-                "content_type": "clip"
-            }
-        }
+        payload = {"content_params": {"content_id": song_id, "content_type": "clip"}}
         rights_res = self.session.post(rights_url, json=payload, timeout=15)
         if rights_res.status_code != 200:
-            raise Exception(f"No se pudo obtener la licencia de audio de Suno (HTTP {rights_res.status_code})")
+            raise Exception(
+                f"No se pudo obtener la licencia de audio de Suno (HTTP {rights_res.status_code})"
+            )
 
         rights_data = rights_res.json()
         glt = rights_data["glt"]
@@ -244,7 +266,9 @@ class SunoScraper:
 
         res = self.session.get(stream_url, stream=True, timeout=30)
         if res.status_code != 200:
-            raise Exception(f"Error al descargar stream de audio (HTTP {res.status_code})")
+            raise Exception(
+                f"Error al descargar stream de audio (HTTP {res.status_code})"
+            )
 
         total_size = int(res.headers.get("content-length", 0))
         encrypted_chunks = []
@@ -266,7 +290,11 @@ class SunoScraper:
         if progress_callback:
             progress_callback("descifrando", downloaded, total_size, 80.0)
 
-        cipher = Cipher(algorithms.AES(content_key), modes.CTR(content_iv), backend=default_backend())
+        cipher = Cipher(
+            algorithms.AES(content_key),
+            modes.CTR(content_iv),
+            backend=default_backend(),
+        )
         decryptor = cipher.decryptor()
         decrypted_audio = decryptor.update(encrypted_data) + decryptor.finalize()
 
@@ -284,20 +312,25 @@ class SunoScraper:
             cmd = [
                 self.ffmpeg_exe,
                 "-y",
-                "-i", temp_decrypted,
+                "-i",
+                temp_decrypted,
                 "-vn",
-                "-c:a", "pcm_s16le",
-                output_audio_path
+                "-c:a",
+                "pcm_s16le",
+                output_audio_path,
             ]
         else:
             cmd = [
                 self.ffmpeg_exe,
                 "-y",
-                "-i", temp_decrypted,
+                "-i",
+                temp_decrypted,
                 "-vn",
-                "-c:a", "libmp3lame",
-                "-b:a", "320k",
-                output_audio_path
+                "-c:a",
+                "libmp3lame",
+                "-b:a",
+                "320k",
+                output_audio_path,
             ]
 
         conv_res = subprocess.run(cmd, capture_output=True, text=True)
@@ -342,7 +375,7 @@ class SunoScraper:
         output_sample_mp3: Optional[str] = None,
         start_sec: float = 0.0,
         duration_sec: Optional[float] = None,
-        apply_fade: bool = True
+        apply_fade: bool = True,
     ) -> Dict[str, Any]:
         """
         Genera una muestra/preview en MP3/WAV de una parte de la canción.
@@ -379,7 +412,15 @@ class SunoScraper:
         is_wav = input_mp3.lower().endswith(".wav")
         if not output_sample_mp3:
             base, ext = os.path.splitext(input_mp3)
-            dur_label = f"{int(duration_sec)}s" if duration_sec < 60 else f"{int(duration_sec // 60)}m{int(duration_sec % 60):02d}s" if duration_sec % 60 else f"{int(duration_sec // 60)}m"
+            dur_label = (
+                f"{int(duration_sec)}s"
+                if duration_sec < 60
+                else (
+                    f"{int(duration_sec // 60)}m{int(duration_sec % 60):02d}s"
+                    if duration_sec % 60
+                    else f"{int(duration_sec // 60)}m"
+                )
+            )
             output_sample_mp3 = f"{base}_muestra_{dur_label}{ext}"
 
         # Apply smoothing (fade-in and fade-out)
@@ -394,9 +435,12 @@ class SunoScraper:
         cmd = [
             self.ffmpeg_exe,
             "-y",
-            "-ss", str(round(start_sec, 2)),
-            "-t", str(round(duration_sec, 2)),
-            "-i", input_mp3
+            "-ss",
+            str(round(start_sec, 2)),
+            "-t",
+            str(round(duration_sec, 2)),
+            "-i",
+            input_mp3,
         ]
 
         if filters:
@@ -409,7 +453,9 @@ class SunoScraper:
 
         conv_res = subprocess.run(cmd, capture_output=True, text=True)
         if conv_res.returncode != 0:
-            raise Exception(f"Error al generar la muestra con FFmpeg: {conv_res.stderr}")
+            raise Exception(
+                f"Error al generar la muestra con FFmpeg: {conv_res.stderr}"
+            )
 
         sample_duration = self.get_audio_duration(output_sample_mp3)
 
@@ -419,7 +465,7 @@ class SunoScraper:
             "total_duration": total_duration,
             "start_sec": start_sec,
             "duration_sec": duration_sec,
-            "actual_sample_duration": sample_duration
+            "actual_sample_duration": sample_duration,
         }
 
     def download_sample_direct(
@@ -431,7 +477,7 @@ class SunoScraper:
         audio_format: str = "mp3",
         apply_fade: bool = True,
         save_cover: bool = True,
-        progress_callback: Optional[Callable[[str, int, int, float], None]] = None
+        progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
     ) -> Dict[str, Any]:
         """
         Descarga y genera DIRECTAMENTE una muestra de audio (preview) a partir de una URL de Suno,
@@ -467,7 +513,7 @@ class SunoScraper:
                 candidate_audio,
                 start_sec=start_sec,
                 duration_sec=dur_calc,
-                apply_fade=apply_fade
+                apply_fade=apply_fade,
             )
             res["info"] = info
             if save_cover and info.get("image_url"):
@@ -479,8 +525,13 @@ class SunoScraper:
             return res
 
         # 2. If the complete one does not exist, download and decrypt the stream to a temporary file that will be deleted upon completion
-        stream_url = info.get("audio_url") or f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
-        temp_decrypted = os.path.join(output_dir, f".tmp_sample_{song_id[:8]}_{os.getpid()}.m4a")
+        stream_url = (
+            info.get("audio_url")
+            or f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
+        )
+        temp_decrypted = os.path.join(
+            output_dir, f".tmp_sample_{song_id[:8]}_{os.getpid()}.m4a"
+        )
 
         try:
             if progress_callback:
@@ -489,14 +540,13 @@ class SunoScraper:
             rights_url = "https://audiopipe.suno.ai/rights"
             payload = {
                 "license_type": "user",
-                "content": {
-                    "content_id": song_id,
-                    "content_type": "clip"
-                }
+                "content": {"content_id": song_id, "content_type": "clip"},
             }
             rights_res = self.session.post(rights_url, json=payload, timeout=15)
             if rights_res.status_code != 200:
-                raise Exception(f"No se pudo obtener la licencia de audio de Suno (HTTP {rights_res.status_code})")
+                raise Exception(
+                    f"No se pudo obtener la licencia de audio de Suno (HTTP {rights_res.status_code})"
+                )
 
             rights_data = rights_res.json()
             glt = rights_data["glt"]
@@ -518,7 +568,9 @@ class SunoScraper:
 
             res = self.session.get(stream_url, stream=True, timeout=30)
             if res.status_code != 200:
-                raise Exception(f"Error al descargar stream de audio (HTTP {res.status_code})")
+                raise Exception(
+                    f"Error al descargar stream de audio (HTTP {res.status_code})"
+                )
 
             total_size = int(res.headers.get("content-length", 0))
             encrypted_chunks = []
@@ -529,7 +581,9 @@ class SunoScraper:
                     downloaded += len(chunk)
                     if progress_callback and total_size > 0:
                         pct = 25.0 + ((downloaded / total_size) * 45.0)
-                        progress_callback("descargando stream", downloaded, total_size, pct)
+                        progress_callback(
+                            "descargando stream", downloaded, total_size, pct
+                        )
 
             encrypted_data = b"".join(encrypted_chunks)
             if len(encrypted_data) < 50000:
@@ -538,7 +592,11 @@ class SunoScraper:
             if progress_callback:
                 progress_callback("descifrando", downloaded, total_size, 75.0)
 
-            cipher = Cipher(algorithms.AES(content_key), modes.CTR(content_iv), backend=default_backend())
+            cipher = Cipher(
+                algorithms.AES(content_key),
+                modes.CTR(content_iv),
+                backend=default_backend(),
+            )
             decryptor = cipher.decryptor()
             decrypted_audio = decryptor.update(encrypted_data) + decryptor.finalize()
 
@@ -548,7 +606,9 @@ class SunoScraper:
             total_duration = self.get_audio_duration(temp_decrypted)
 
             if duration_sec == "half":
-                calc_dur = max(15.0, total_duration * 0.5) if total_duration > 0 else 60.0
+                calc_dur = (
+                    max(15.0, total_duration * 0.5) if total_duration > 0 else 60.0
+                )
             elif isinstance(duration_sec, (int, float)) and duration_sec > 0:
                 calc_dur = float(duration_sec)
             else:
@@ -568,8 +628,18 @@ class SunoScraper:
                 start_sec = max(0.0, start_sec)
                 calc_dur = max(5.0, calc_dur)
 
-            dur_label = f"{int(calc_dur)}s" if calc_dur < 60 else f"{int(calc_dur // 60)}m{int(calc_dur % 60):02d}s" if calc_dur % 60 else f"{int(calc_dur // 60)}m"
-            output_sample_file = os.path.join(output_dir, f"{base_name}_muestra_{dur_label}.{ext}")
+            dur_label = (
+                f"{int(calc_dur)}s"
+                if calc_dur < 60
+                else (
+                    f"{int(calc_dur // 60)}m{int(calc_dur % 60):02d}s"
+                    if calc_dur % 60
+                    else f"{int(calc_dur // 60)}m"
+                )
+            )
+            output_sample_file = os.path.join(
+                output_dir, f"{base_name}_muestra_{dur_label}.{ext}"
+            )
 
             if progress_callback:
                 progress_callback("creando muestra", downloaded, total_size, 85.0)
@@ -580,14 +650,19 @@ class SunoScraper:
                 fade_out_len = min(2.5, calc_dur * 0.12)
                 fade_out_start = max(0.1, calc_dur - fade_out_len)
                 filters.append(f"afade=t=in:ss=0:d={fade_in_len:.2f}")
-                filters.append(f"afade=t=out:st={fade_out_start:.2f}:d={fade_out_len:.2f}")
+                filters.append(
+                    f"afade=t=out:st={fade_out_start:.2f}:d={fade_out_len:.2f}"
+                )
 
             cmd = [
                 self.ffmpeg_exe,
                 "-y",
-                "-ss", str(round(start_sec, 2)),
-                "-t", str(round(calc_dur, 2)),
-                "-i", temp_decrypted
+                "-ss",
+                str(round(start_sec, 2)),
+                "-t",
+                str(round(calc_dur, 2)),
+                "-i",
+                temp_decrypted,
             ]
             if filters:
                 cmd.extend(["-af", ",".join(filters)])
@@ -595,11 +670,15 @@ class SunoScraper:
             if ext == "wav":
                 cmd.extend(["-vn", "-c:a", "pcm_s16le", output_sample_file])
             else:
-                cmd.extend(["-vn", "-c:a", "libmp3lame", "-b:a", "320k", output_sample_file])
+                cmd.extend(
+                    ["-vn", "-c:a", "libmp3lame", "-b:a", "320k", output_sample_file]
+                )
 
             conv_res = subprocess.run(cmd, capture_output=True, text=True)
             if conv_res.returncode != 0:
-                raise Exception(f"Error al generar muestra con FFmpeg: {conv_res.stderr}")
+                raise Exception(
+                    f"Error al generar muestra con FFmpeg: {conv_res.stderr}"
+                )
 
             sample_actual_duration = self.get_audio_duration(output_sample_file)
 
@@ -622,7 +701,7 @@ class SunoScraper:
                 "duration_sec": calc_dur,
                 "actual_sample_duration": sample_actual_duration,
                 "cover_path": cover_path,
-                "format": ext
+                "format": ext,
             }
 
         finally:
@@ -637,7 +716,7 @@ class SunoScraper:
         input_audio: str,
         output_dir: Optional[str] = None,
         output_format: Optional[str] = None,
-        progress_callback: Optional[Callable[[str, int, int, float], None]] = None
+        progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
     ) -> Dict[str, Any]:
         """
         Separa una canción en dos pistas independientes:
@@ -657,13 +736,29 @@ class SunoScraper:
             if suffix in base_name:
                 base_name = base_name.split(suffix)[0]
 
-        fmt = (output_format or ("wav" if input_audio.lower().endswith(".wav") else "mp3")).lower().strip()
-        codec_args = ["-c:a", "pcm_s16le"] if fmt == "wav" else ["-c:a", "libmp3lame", "-b:a", "320k"]
+        fmt = (
+            (
+                output_format
+                or ("wav" if input_audio.lower().endswith(".wav") else "mp3")
+            )
+            .lower()
+            .strip()
+        )
+        codec_args = (
+            ["-c:a", "pcm_s16le"]
+            if fmt == "wav"
+            else ["-c:a", "libmp3lame", "-b:a", "320k"]
+        )
 
         pista_path = os.path.join(out_dir, f"{base_name}_pista_instrumental.{fmt}")
         voz_path = os.path.join(out_dir, f"{base_name}_solo_voz.{fmt}")
 
-        if os.path.exists(pista_path) and os.path.exists(voz_path) and os.path.getsize(pista_path) > 50000 and os.path.getsize(voz_path) > 50000:
+        if (
+            os.path.exists(pista_path)
+            and os.path.exists(voz_path)
+            and os.path.getsize(pista_path) > 50000
+            and os.path.getsize(voz_path) > 50000
+        ):
             dur = self.get_audio_duration(pista_path)
             return {
                 "instrumental_path": pista_path,
@@ -671,7 +766,7 @@ class SunoScraper:
                 "instrumental_filename": os.path.basename(pista_path),
                 "vocals_filename": os.path.basename(voz_path),
                 "duration": dur,
-                "format": fmt
+                "format": fmt,
             }
 
         if progress_callback:
@@ -684,12 +779,20 @@ class SunoScraper:
             "[orig_bass]lowpass=f=160[bass];"
             "[sides][bass]amix=inputs=2:weights=1 1[outa]"
         )
-        cmd_inst = [
-            self.ffmpeg_exe, "-y",
-            "-i", input_audio,
-            "-filter_complex", inst_filter,
-            "-map", "[outa]"
-        ] + codec_args + [pista_path]
+        cmd_inst = (
+            [
+                self.ffmpeg_exe,
+                "-y",
+                "-i",
+                input_audio,
+                "-filter_complex",
+                inst_filter,
+                "-map",
+                "[outa]",
+            ]
+            + codec_args
+            + [pista_path]
+        )
 
         res_inst = subprocess.run(cmd_inst, capture_output=True, text=True)
         if res_inst.returncode != 0:
@@ -705,12 +808,20 @@ class SunoScraper:
             "[highs]highpass=f=7500,volume=0.25[vocal_air];"
             "[vocal_mid][vocal_air]amix=inputs=2:weights=1.2 0.8[outa]"
         )
-        cmd_vocal = [
-            self.ffmpeg_exe, "-y",
-            "-i", input_audio,
-            "-filter_complex", vocal_filter,
-            "-map", "[outa]"
-        ] + codec_args + [voz_path]
+        cmd_vocal = (
+            [
+                self.ffmpeg_exe,
+                "-y",
+                "-i",
+                input_audio,
+                "-filter_complex",
+                vocal_filter,
+                "-map",
+                "[outa]",
+            ]
+            + codec_args
+            + [voz_path]
+        )
 
         res_vocal = subprocess.run(cmd_vocal, capture_output=True, text=True)
         if res_vocal.returncode != 0:
@@ -727,7 +838,7 @@ class SunoScraper:
             "instrumental_filename": os.path.basename(pista_path),
             "vocals_filename": os.path.basename(voz_path),
             "duration": dur,
-            "format": fmt
+            "format": fmt,
         }
 
     def download_cover(self, url: str, destination_path: str):
@@ -749,7 +860,7 @@ class SunoScraper:
         audio_format: str = "mp3",
         save_cover: bool = True,
         save_metadata: bool = True,
-        progress_callback: Optional[Callable[[str, int, int, float], None]] = None
+        progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
     ) -> Dict[str, Any]:
         """Descarga, descifra y procesa la canción completa en MP3 o WAV."""
         info = self.scrape_song_info(url)
@@ -769,12 +880,15 @@ class SunoScraper:
             "format": ext,
             "cover_path": None,
             "metadata_path": None,
-            "duration": 0.0
+            "duration": 0.0,
         }
 
         # Decrypt and Save Audio (MP3 or WAV)
         audio_out = os.path.join(output_dir, f"{base_name}.{ext}")
-        stream_url = info.get("audio_url") or f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
+        stream_url = (
+            info.get("audio_url")
+            or f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
+        )
 
         if os.path.exists(audio_out) and os.path.getsize(audio_out) > 50000:
             final_audio_path = audio_out
@@ -786,10 +900,10 @@ class SunoScraper:
                 stream_url,
                 audio_out,
                 audio_format=ext,
-                progress_callback=progress_callback
+                progress_callback=progress_callback,
             )
         result["audio_path"] = final_audio_path
-        result["mp3_path"] = final_audio_path  
+        result["mp3_path"] = final_audio_path
         # Backward compatiability
         result["duration"] = self.get_audio_duration(final_audio_path)
 
@@ -822,14 +936,39 @@ class SunoScraper:
 
 def launch_cli():
     import argparse
-    parser = argparse.ArgumentParser(description="Descargador, Descifrador y Separador de Pistas de Suno AI")
+
+    parser = argparse.ArgumentParser(
+        description="Descargador, Descifrador y Separador de Pistas de Suno AI"
+    )
     parser.add_argument("url", nargs="?", help="URL o ID de la canción de Suno")
-    parser.add_argument("-o", "--output", default="downloads", help="Carpeta de destino")
-    parser.add_argument("-f", "--format", choices=["mp3", "wav"], default="mp3", help="Formato de audio: mp3 (320kbps) o wav (Lossless PCM)")
+    parser.add_argument(
+        "-o", "--output", default="downloads", help="Carpeta de destino"
+    )
+    parser.add_argument(
+        "-f",
+        "--format",
+        choices=["mp3", "wav"],
+        default="mp3",
+        help="Formato de audio: mp3 (320kbps) o wav (Lossless PCM)",
+    )
     parser.add_argument("--no-cover", action="store_true", help="No descargar portada")
-    parser.add_argument("--sample", nargs="?", const="auto", default=None, help="Generar muestra de audio (ej: 30, 60, 120 o auto)")
-    parser.add_argument("--sample-only", action="store_true", help="Descargar únicamente la muestra directa sin descargar la canción completa")
-    parser.add_argument("--separate", action="store_true", help="Separar audio en pista instrumental y solo voz")
+    parser.add_argument(
+        "--sample",
+        nargs="?",
+        const="auto",
+        default=None,
+        help="Generar muestra de audio (ej: 30, 60, 120 o auto)",
+    )
+    parser.add_argument(
+        "--sample-only",
+        action="store_true",
+        help="Descargar únicamente la muestra directa sin descargar la canción completa",
+    )
+    parser.add_argument(
+        "--separate",
+        action="store_true",
+        help="Separar audio en pista instrumental y solo voz",
+    )
     parser.add_argument("--gui", action="store_true", help="Abrir interfaz gráfica")
 
     args = parser.parse_args()
@@ -839,17 +978,23 @@ def launch_cli():
         return
 
     if not args.url:
-        print("Uso: python suno_downloader.py https://suno.com/song/ID_DE_LA_CANCION [-f wav] [--separate] [--sample 120] [--sample-only]")
+        print(
+            "Uso: python suno_downloader.py https://suno.com/song/ID_DE_LA_CANCION [-f wav] [--separate] [--sample 120] [--sample-only]"
+        )
         return
 
     scraper = SunoScraper()
 
     try:
+
         def progress_cb(stage, downloaded, total, percent):
             if total > 0:
                 mb_d = downloaded / (1024 * 1024)
                 mb_t = total / (1024 * 1024)
-                print(f"\r[{stage.upper()}] [{percent:.1f}%] {mb_d:.2f}MB / {mb_t:.2f}MB", end="")
+                print(
+                    f"\r[{stage.upper()}] [{percent:.1f}%] {mb_d:.2f}MB / {mb_t:.2f}MB",
+                    end="",
+                )
             else:
                 print(f"\r[{stage.upper()}] Procesando...", end="")
 
@@ -860,40 +1005,48 @@ def launch_cli():
                     dur_req = float(args.sample)
                 except ValueError:
                     dur_req = None
-            print(f"\n✂️ Descargando DIRECTAMENTE muestra ({args.format.upper()}) sin guardar canción completa: {args.url}")
+            print(
+                f"\n✂️ Descargando DIRECTAMENTE muestra ({args.format.upper()}) sin guardar canción completa: {args.url}"
+            )
             sample_res = scraper.download_sample_direct(
                 args.url,
                 duration_sec=dur_req,
                 output_dir=args.output,
                 audio_format=args.format,
                 save_cover=not args.no_cover,
-                progress_callback=progress_cb
+                progress_callback=progress_cb,
             )
             print(f"\n\n✅ ¡Muestra generada sin descargar la canción completa!")
             print(f"🎵 Título: {sample_res['info']['title']}")
-            print(f"✂️ Duración de la muestra: {sample_res['actual_sample_duration']:.1f}s (Total: {sample_res['total_duration']:.1f}s)")
+            print(
+                f"✂️ Duración de la muestra: {sample_res['actual_sample_duration']:.1f}s (Total: {sample_res['total_duration']:.1f}s)"
+            )
             print(f"🎧 Archivo de muestra: {sample_res['sample_path']}")
-            if sample_res.get('cover_path'):
+            if sample_res.get("cover_path"):
                 print(f"🖼️ Portada: {sample_res['cover_path']}")
             return
 
-        print(f"\n🎵 Conectando y descifrando canción de Suno ({args.format.upper()}): {args.url}")
+        print(
+            f"\n🎵 Conectando y descifrando canción de Suno ({args.format.upper()}): {args.url}"
+        )
         res = scraper.download_song(
             args.url,
             output_dir=args.output,
             audio_format=args.format,
             save_cover=not args.no_cover,
-            progress_callback=progress_cb
+            progress_callback=progress_cb,
         )
-        print(f"\n\n✅ ¡Descarga y descifrado completados en formato {args.format.upper()}!")
+        print(
+            f"\n\n✅ ¡Descarga y descifrado completados en formato {args.format.upper()}!"
+        )
         print(f"🎵 Título: {res['info']['title']}")
-        dur_m = int(res['duration'] // 60)
-        dur_s = int(res['duration'] % 60)
+        dur_m = int(res["duration"] // 60)
+        dur_s = int(res["duration"] % 60)
         print(f"⏱️ Duración total: {dur_m}:{dur_s:02d} ({res['duration']:.1f}s)")
         print(f"🎧 Archivo de audio ({args.format.upper()}): {res['audio_path']}")
-        if res.get('cover_path'):
+        if res.get("cover_path"):
             print(f"🖼️ Portada: {res['cover_path']}")
-        if res.get('metadata_path'):
+        if res.get("metadata_path"):
             print(f"📄 Letra y Metadatos: {res['metadata_path']}")
 
         # If a sample was requested via command
@@ -904,13 +1057,19 @@ def launch_cli():
                     dur_req = float(args.sample)
                 except ValueError:
                     dur_req = None
-            sample_res = scraper.create_audio_sample(res["audio_path"], duration_sec=dur_req)
-            print(f"✂️ Muestra generada ({sample_res['actual_sample_duration']:.1f}s): {sample_res['sample_path']}")
+            sample_res = scraper.create_audio_sample(
+                res["audio_path"], duration_sec=dur_req
+            )
+            print(
+                f"✂️ Muestra generada ({sample_res['actual_sample_duration']:.1f}s): {sample_res['sample_path']}"
+            )
 
         # If track and vocal separation was requested
         if args.separate:
             print("\n🎤 Separando pista instrumental y solo voz...")
-            sep_res = scraper.separate_vocals_and_instrumental(res["audio_path"], output_format=args.format)
+            sep_res = scraper.separate_vocals_and_instrumental(
+                res["audio_path"], output_format=args.format
+            )
             print(f"🎹 Pista Instrumental: {sep_res['instrumental_path']}")
             print(f"🎙️ Solo Voz (Acapella): {sep_res['vocals_path']}")
 
@@ -933,8 +1092,15 @@ def launch_gui():
 
     style = ttk.Style()
     style.theme_use("clam")
-    style.configure("TProgressbar", thickness=10, troughcolor="#202024", background="#7928CA")
-    style.configure("TCombobox", fieldbackground="#202024", background="#29292E", foreground="#FFFFFF")
+    style.configure(
+        "TProgressbar", thickness=10, troughcolor="#202024", background="#7928CA"
+    )
+    style.configure(
+        "TCombobox",
+        fieldbackground="#202024",
+        background="#29292E",
+        foreground="#FFFFFF",
+    )
 
     scraper = SunoScraper()
     last_audio_file = [None]
@@ -953,7 +1119,7 @@ def launch_gui():
         text="⚡ SUNO AI DOWNLOADER HQ",
         font=("Segoe UI", 16, "bold"),
         fg="#FF0080",
-        bg="#1a1a1e"
+        bg="#1a1a1e",
     )
     lbl_title.pack(side="left", padx=20, pady=15)
 
@@ -962,7 +1128,7 @@ def launch_gui():
         text="Descarga MP3 / WAV + Separador de Pista y Voz",
         font=("Segoe UI", 10, "italic"),
         fg="#888899",
-        bg="#1a1a1e"
+        bg="#1a1a1e",
     )
     lbl_sub.pack(side="left", pady=18)
 
@@ -976,7 +1142,7 @@ def launch_gui():
         text="Pega el enlace compartido de Suno (ej. https://suno.com/song/...):",
         font=("Segoe UI", 10, "bold"),
         fg="#E1E1E6",
-        bg="#121214"
+        bg="#121214",
     )
     lbl_url.pack(anchor="w", pady=(0, 4))
 
@@ -989,7 +1155,7 @@ def launch_gui():
         bg="#202024",
         fg="#FFFFFF",
         insertbackground="#FF0080",
-        relief="flat"
+        relief="flat",
     )
     url_entry.pack(fill="x", padx=10, pady=8)
 
@@ -999,22 +1165,39 @@ def launch_gui():
 
     var_format = tk.StringVar(value="mp3")
     lbl_fmt = tk.Label(
-        opts_frame, text="Formato:",
-        font=("Segoe UI", 9, "bold"), fg="#00DFD8", bg="#121214"
+        opts_frame,
+        text="Formato:",
+        font=("Segoe UI", 9, "bold"),
+        fg="#00DFD8",
+        bg="#121214",
     )
     lbl_fmt.pack(side="left", padx=(0, 6))
 
     rad_mp3 = tk.Radiobutton(
-        opts_frame, text="MP3 (320 kbps)", variable=var_format, value="mp3",
-        bg="#121214", fg="#FFFFFF", selectcolor="#202024", activebackground="#121214",
-        activeforeground="#FFFFFF", font=("Segoe UI", 9, "bold")
+        opts_frame,
+        text="MP3 (320 kbps)",
+        variable=var_format,
+        value="mp3",
+        bg="#121214",
+        fg="#FFFFFF",
+        selectcolor="#202024",
+        activebackground="#121214",
+        activeforeground="#FFFFFF",
+        font=("Segoe UI", 9, "bold"),
     )
     rad_mp3.pack(side="left", padx=(0, 10))
 
     rad_wav = tk.Radiobutton(
-        opts_frame, text="WAV (Lossless PCM)", variable=var_format, value="wav",
-        bg="#121214", fg="#00DFD8", selectcolor="#202024", activebackground="#121214",
-        activeforeground="#00DFD8", font=("Segoe UI", 9, "bold")
+        opts_frame,
+        text="WAV (Lossless PCM)",
+        variable=var_format,
+        value="wav",
+        bg="#121214",
+        fg="#00DFD8",
+        selectcolor="#202024",
+        activebackground="#121214",
+        activeforeground="#00DFD8",
+        font=("Segoe UI", 9, "bold"),
     )
     rad_wav.pack(side="left", padx=(0, 20))
 
@@ -1022,16 +1205,28 @@ def launch_gui():
     var_meta = tk.BooleanVar(value=True)
 
     chk_cover = tk.Checkbutton(
-        opts_frame, text="Portada", variable=var_cover,
-        bg="#121214", fg="#A8A8B3", selectcolor="#202024", activebackground="#121214",
-        activeforeground="#FFFFFF", font=("Segoe UI", 9)
+        opts_frame,
+        text="Portada",
+        variable=var_cover,
+        bg="#121214",
+        fg="#A8A8B3",
+        selectcolor="#202024",
+        activebackground="#121214",
+        activeforeground="#FFFFFF",
+        font=("Segoe UI", 9),
     )
     chk_cover.pack(side="left", padx=(0, 12))
 
     chk_meta = tk.Checkbutton(
-        opts_frame, text="Letra (.txt)", variable=var_meta,
-        bg="#121214", fg="#A8A8B3", selectcolor="#202024", activebackground="#121214",
-        activeforeground="#FFFFFF", font=("Segoe UI", 9)
+        opts_frame,
+        text="Letra (.txt)",
+        variable=var_meta,
+        bg="#121214",
+        fg="#A8A8B3",
+        selectcolor="#202024",
+        activebackground="#121214",
+        activeforeground="#FFFFFF",
+        font=("Segoe UI", 9),
     )
     chk_meta.pack(side="left")
 
@@ -1040,8 +1235,11 @@ def launch_gui():
     folder_frame.pack(fill="x", pady=(0, 8))
 
     lbl_folder_text = tk.Label(
-        folder_frame, text="Carpeta de destino:",
-        font=("Segoe UI", 9), fg="#A8A8B3", bg="#121214"
+        folder_frame,
+        text="Carpeta de destino:",
+        font=("Segoe UI", 9),
+        fg="#A8A8B3",
+        bg="#121214",
     )
     lbl_folder_text.pack(side="left")
 
@@ -1049,8 +1247,11 @@ def launch_gui():
     selected_dir_var = tk.StringVar(value=default_dir)
 
     lbl_folder_path = tk.Label(
-        folder_frame, textvariable=selected_dir_var,
-        font=("Segoe UI", 9, "italic"), fg="#00DFD8", bg="#121214"
+        folder_frame,
+        textvariable=selected_dir_var,
+        font=("Segoe UI", 9, "italic"),
+        fg="#00DFD8",
+        bg="#121214",
     )
     lbl_folder_path.pack(side="left", padx=10)
 
@@ -1060,9 +1261,16 @@ def launch_gui():
             selected_dir_var.set(d)
 
     btn_browse = tk.Button(
-        folder_frame, text="Examinar...", command=choose_directory,
-        bg="#29292E", fg="#E1E1E6", relief="flat", font=("Segoe UI", 8, "bold"),
-        padx=8, pady=2, cursor="hand2"
+        folder_frame,
+        text="Examinar...",
+        command=choose_directory,
+        bg="#29292E",
+        fg="#E1E1E6",
+        relief="flat",
+        font=("Segoe UI", 8, "bold"),
+        padx=8,
+        pady=2,
+        cursor="hand2",
     )
     btn_browse.pack(side="right")
 
@@ -1070,10 +1278,15 @@ def launch_gui():
     progress_bar = ttk.Progressbar(main_frame, style="TProgressbar", mode="determinate")
     progress_bar.pack(fill="x", pady=(0, 4))
 
-    status_var = tk.StringVar(value="Listo. Pega un enlace de Suno y presiona 'Descargar Canción'.")
+    status_var = tk.StringVar(
+        value="Listo. Pega un enlace de Suno y presiona 'Descargar Canción'."
+    )
     lbl_status = tk.Label(
-        main_frame, textvariable=status_var,
-        font=("Segoe UI", 9), fg="#A8A8B3", bg="#121214"
+        main_frame,
+        textvariable=status_var,
+        font=("Segoe UI", 9),
+        fg="#A8A8B3",
+        bg="#121214",
     )
     lbl_status.pack(anchor="w", pady=(0, 6))
 
@@ -1081,27 +1294,42 @@ def launch_gui():
     info_card = tk.Frame(main_frame, bg="#1a1a1e", bd=1, relief="flat")
     info_card.pack(fill="x", pady=(0, 8))
 
-    cover_label = tk.Label(info_card, bg="#202024", width=12, height=6, text="[Portada]", fg="#666677")
+    cover_label = tk.Label(
+        info_card, bg="#202024", width=12, height=6, text="[Portada]", fg="#666677"
+    )
     cover_label.pack(side="left", padx=10, pady=8)
 
     details_frame = tk.Frame(info_card, bg="#1a1a1e")
     details_frame.pack(side="left", fill="both", expand=True, padx=(0, 10), pady=8)
 
     lbl_song_title = tk.Label(
-        details_frame, text="Título: --",
-        font=("Segoe UI", 11, "bold"), fg="#FFFFFF", bg="#1a1a1e", anchor="w"
+        details_frame,
+        text="Título: --",
+        font=("Segoe UI", 11, "bold"),
+        fg="#FFFFFF",
+        bg="#1a1a1e",
+        anchor="w",
     )
     lbl_song_title.pack(fill="x")
 
     lbl_song_meta = tk.Label(
-        details_frame, text="Estilo: -- | Duración: --",
-        font=("Segoe UI", 9), fg="#FF0080", bg="#1a1a1e", anchor="w"
+        details_frame,
+        text="Estilo: -- | Duración: --",
+        font=("Segoe UI", 9),
+        fg="#FF0080",
+        bg="#1a1a1e",
+        anchor="w",
     )
     lbl_song_meta.pack(fill="x", pady=(2, 4))
 
     txt_lyrics = tk.Text(
-        details_frame, height=3, font=("Consolas", 8),
-        bg="#121214", fg="#CCCCCC", relief="flat", bd=0
+        details_frame,
+        height=3,
+        font=("Consolas", 8),
+        bg="#121214",
+        fg="#CCCCCC",
+        relief="flat",
+        bd=0,
     )
     txt_lyrics.pack(fill="x", expand=True)
     txt_lyrics.insert("1.0", "Letra / Prompt aparecerá aquí...")
@@ -1115,7 +1343,7 @@ def launch_gui():
         fg="#00DFD8",
         bg="#18181c",
         bd=1,
-        relief="groove"
+        relief="groove",
     )
     sample_box.pack(fill="x", pady=(0, 8), padx=2, ipady=3)
 
@@ -1123,11 +1351,7 @@ def launch_gui():
     sample_inner.pack(fill="x", padx=10, pady=3)
 
     lbl_sample_opt = tk.Label(
-        sample_inner,
-        text="Duración:",
-        font=("Segoe UI", 9),
-        fg="#E1E1E6",
-        bg="#18181c"
+        sample_inner, text="Duración:", font=("Segoe UI", 9), fg="#E1E1E6", bg="#18181c"
     )
     lbl_sample_opt.pack(side="left", padx=(0, 6))
 
@@ -1136,7 +1360,7 @@ def launch_gui():
         "⏱️ 1 Minuto (60s)",
         "⏳ 2 Minutos (120s)",
         "🌓 Mitad de Canción (50%)",
-        "✨ Auto (Recomendada)"
+        "✨ Auto (Recomendada)",
     ]
     sample_choice_var = tk.StringVar(value="✨ Auto (Recomendada)")
     sample_combo = ttk.Combobox(
@@ -1144,25 +1368,29 @@ def launch_gui():
         textvariable=sample_choice_var,
         values=sample_options,
         state="readonly",
-        width=20
+        width=20,
     )
     sample_combo.pack(side="left", padx=(0, 8))
 
     def generate_sample_action():
         url = url_entry.get().strip()
-        has_full_download = bool(last_audio_file[0] and os.path.exists(last_audio_file[0]))
+        has_full_download = bool(
+            last_audio_file[0] and os.path.exists(last_audio_file[0])
+        )
 
         if not has_full_download and not url:
             messagebox.showwarning(
                 "Enlace Requerido",
-                "Por favor pega el enlace de la canción de Suno en la casilla de arriba para generar la muestra."
+                "Por favor pega el enlace de la canción de Suno en la casilla de arriba para generar la muestra.",
             )
             url_entry.focus_set()
             return
 
         choice = sample_choice_var.get()
         dur = None
-        tot = current_duration[0] or (scraper.get_audio_duration(last_audio_file[0]) if has_full_download else 0.0)
+        tot = current_duration[0] or (
+            scraper.get_audio_duration(last_audio_file[0]) if has_full_download else 0.0
+        )
 
         if "30" in choice:
             dur = 30.0
@@ -1171,9 +1399,13 @@ def launch_gui():
         elif "2 Minutos" in choice or "120s" in choice:
             dur = 120.0
         elif "Mitad" in choice:
-            dur = "half" if not has_full_download else (max(15.0, tot * 0.5) if tot > 0 else 60.0)
+            dur = (
+                "half"
+                if not has_full_download
+                else (max(15.0, tot * 0.5) if tot > 0 else 60.0)
+            )
         else:
-            dur = None  
+            dur = None
             # auto
 
         status_var.set("Preparando muestra de audio...")
@@ -1187,15 +1419,18 @@ def launch_gui():
                     status_var.set("Generando muestra desde el archivo descargado...")
                     s_res = scraper.create_audio_sample(
                         last_audio_file[0],
-                        duration_sec=dur if isinstance(dur, (int, float)) else None
+                        duration_sec=dur if isinstance(dur, (int, float)) else None,
                     )
                 else:
+
                     def on_sample_progress(stage, downloaded, total, percent):
                         progress_bar["value"] = percent
                         if total > 0:
                             mb_d = downloaded / (1024 * 1024)
                             mb_t = total / (1024 * 1024)
-                            status_var.set(f"[Muestra: {stage.capitalize()}] {percent:.1f}% ({mb_d:.2f}MB / {mb_t:.2f}MB)")
+                            status_var.set(
+                                f"[Muestra: {stage.capitalize()}] {percent:.1f}% ({mb_d:.2f}MB / {mb_t:.2f}MB)"
+                            )
                         else:
                             status_var.set(f"[Muestra] {stage.capitalize()}...")
 
@@ -1205,13 +1440,15 @@ def launch_gui():
                         output_dir=selected_dir_var.get(),
                         audio_format=var_format.get(),
                         save_cover=var_cover.get(),
-                        progress_callback=on_sample_progress
+                        progress_callback=on_sample_progress,
                     )
 
                     # Update song info card
                     info = s_res.get("info", {})
                     if info:
-                        lbl_song_title.config(text=f"🎵 {info.get('title', 'Suno Track')}")
+                        lbl_song_title.config(
+                            text=f"🎵 {info.get('title', 'Suno Track')}"
+                        )
                         tot_dur = s_res.get("total_duration", 0.0)
                         dur_m = int(tot_dur // 60)
                         dur_s = int(tot_dur % 60)
@@ -1223,10 +1460,14 @@ def launch_gui():
 
                         txt_lyrics.config(state="normal")
                         txt_lyrics.delete("1.0", "end")
-                        txt_lyrics.insert("1.0", info.get("prompt") or "Sin letra disponible.")
+                        txt_lyrics.insert(
+                            "1.0", info.get("prompt") or "Sin letra disponible."
+                        )
                         txt_lyrics.config(state="disabled")
 
-                        if s_res.get("cover_path") and os.path.exists(s_res["cover_path"]):
+                        if s_res.get("cover_path") and os.path.exists(
+                            s_res["cover_path"]
+                        ):
                             try:
                                 img = Image.open(s_res["cover_path"])
                                 img = img.resize((100, 100), Image.Resampling.LANCZOS)
@@ -1238,7 +1479,9 @@ def launch_gui():
 
                 last_sample_file[0] = s_res["sample_path"]
                 progress_bar["value"] = 100
-                status_var.set(f"✅ ¡Muestra ({s_res['actual_sample_duration']:.1f}s) guardada con éxito! ({os.path.basename(s_res['sample_path'])})")
+                status_var.set(
+                    f"✅ ¡Muestra ({s_res['actual_sample_duration']:.1f}s) guardada con éxito! ({os.path.basename(s_res['sample_path'])})"
+                )
                 btn_sample_play.config(state="normal", text="▶️ Reproducir Muestra")
                 messagebox.showinfo(
                     "¡Muestra Creada con Éxito!",
@@ -1246,11 +1489,13 @@ def launch_gui():
                     f"🎵 Título: {s_res.get('info', {}).get('title', os.path.basename(s_res['sample_path']))}\n"
                     f"⏱️ Duración de la muestra: {s_res['actual_sample_duration']:.1f}s\n"
                     f"🎧 Archivo: {os.path.basename(s_res['sample_path'])}\n"
-                    f"📂 Ubicación:\n{s_res['sample_path']}"
+                    f"📂 Ubicación:\n{s_res['sample_path']}",
                 )
             except Exception as e:
                 status_var.set(f"❌ Error al crear muestra: {str(e)}")
-                messagebox.showerror("Error de Muestra", f"No se pudo crear la muestra:\n\n{str(e)}")
+                messagebox.showerror(
+                    "Error de Muestra", f"No se pudo crear la muestra:\n\n{str(e)}"
+                )
             finally:
                 progress_bar["value"] = 0
                 btn_sample_create.config(state="normal", text="✂️ Descargar Muestra")
@@ -1269,7 +1514,7 @@ def launch_gui():
         padx=8,
         pady=2,
         state="normal",
-        cursor="hand2"
+        cursor="hand2",
     )
     btn_sample_create.pack(side="left", padx=(0, 6))
 
@@ -1288,7 +1533,7 @@ def launch_gui():
         padx=6,
         pady=2,
         state="disabled",
-        cursor="hand2"
+        cursor="hand2",
     )
     btn_sample_play.pack(side="left")
 
@@ -1300,7 +1545,7 @@ def launch_gui():
         fg="#FF0080",
         bg="#18181c",
         bd=1,
-        relief="groove"
+        relief="groove",
     )
     stem_box.pack(fill="x", pady=(0, 8), padx=2, ipady=3)
 
@@ -1312,7 +1557,7 @@ def launch_gui():
         text="Aísla la pista instrumental y la voz/acapella en pistas separadas:",
         font=("Segoe UI", 8),
         fg="#A8A8B3",
-        bg="#18181c"
+        bg="#18181c",
     )
     lbl_stem_desc.pack(anchor="w", pady=(0, 4))
 
@@ -1321,17 +1566,21 @@ def launch_gui():
 
     def separate_stems_action():
         if not last_audio_file[0] or not os.path.exists(last_audio_file[0]):
-            messagebox.showwarning("Primero descarga la canción", "Debes descargar una canción antes de separar la pista y la voz.")
+            messagebox.showwarning(
+                "Primero descarga la canción",
+                "Debes descargar una canción antes de separar la pista y la voz.",
+            )
             return
 
-        status_var.set("Separando pista instrumental y voz con filtros DSP de alta fidelidad...")
+        status_var.set(
+            "Separando pista instrumental y voz con filtros DSP de alta fidelidad..."
+        )
         btn_stem_separate.config(state="disabled", text="⏳ Separando...")
 
         def stem_task():
             try:
                 sep_res = scraper.separate_vocals_and_instrumental(
-                    last_audio_file[0],
-                    output_format=var_format.get()
+                    last_audio_file[0], output_format=var_format.get()
                 )
                 last_inst_file[0] = sep_res["instrumental_path"]
                 last_vocal_file[0] = sep_res["vocals_path"]
@@ -1340,7 +1589,7 @@ def launch_gui():
                 btn_play_vocal.config(state="normal")
                 messagebox.showinfo(
                     "Separación Exitosa",
-                    f"¡Pistas generadas!\n\n🎹 Instrumental:\n{sep_res['instrumental_filename']}\n\n🎙️ Solo Voz:\n{sep_res['vocals_filename']}"
+                    f"¡Pistas generadas!\n\n🎹 Instrumental:\n{sep_res['instrumental_filename']}\n\n🎙️ Solo Voz:\n{sep_res['vocals_filename']}",
                 )
             except Exception as e:
                 status_var.set(f"❌ Error al separar: {str(e)}")
@@ -1361,7 +1610,7 @@ def launch_gui():
         padx=10,
         pady=3,
         state="disabled",
-        cursor="hand2"
+        cursor="hand2",
     )
     btn_stem_separate.pack(side="left", padx=(0, 8))
 
@@ -1380,7 +1629,7 @@ def launch_gui():
         padx=8,
         pady=3,
         state="disabled",
-        cursor="hand2"
+        cursor="hand2",
     )
     btn_play_inst.pack(side="left", padx=(0, 6))
 
@@ -1399,7 +1648,7 @@ def launch_gui():
         padx=8,
         pady=3,
         state="disabled",
-        cursor="hand2"
+        cursor="hand2",
     )
     btn_play_vocal.pack(side="left")
 
@@ -1409,7 +1658,9 @@ def launch_gui():
 
     def set_ui_loading(is_loading: bool):
         if is_loading:
-            btn_download.config(state="disabled", text="⏳ Descifrando y Descargando...")
+            btn_download.config(
+                state="disabled", text="⏳ Descifrando y Descargando..."
+            )
             btn_paste.config(state="disabled")
             btn_sample_create.config(state="disabled")
             btn_stem_separate.config(state="disabled")
@@ -1423,7 +1674,9 @@ def launch_gui():
     def run_download_thread():
         url = url_entry.get().strip()
         if not url:
-            messagebox.showwarning("URL requerida", "Por favor pega el enlace compartido de Suno.")
+            messagebox.showwarning(
+                "URL requerida", "Por favor pega el enlace compartido de Suno."
+            )
             return
 
         set_ui_loading(True)
@@ -1432,12 +1685,15 @@ def launch_gui():
 
         def task():
             try:
+
                 def on_progress(stage, downloaded, total, percent):
                     progress_bar["value"] = percent
                     if total > 0:
                         mb_d = downloaded / (1024 * 1024)
                         mb_t = total / (1024 * 1024)
-                        status_var.set(f"[{stage.capitalize()}] {percent:.1f}% ({mb_d:.2f} MB / {mb_t:.2f} MB)")
+                        status_var.set(
+                            f"[{stage.capitalize()}] {percent:.1f}% ({mb_d:.2f} MB / {mb_t:.2f} MB)"
+                        )
                     else:
                         status_var.set(f"Procesando: {stage}...")
 
@@ -1448,7 +1704,7 @@ def launch_gui():
                     audio_format=chosen_fmt,
                     save_cover=var_cover.get(),
                     save_metadata=var_meta.get(),
-                    progress_callback=on_progress
+                    progress_callback=on_progress,
                 )
 
                 info = res["info"]
@@ -1456,9 +1712,11 @@ def launch_gui():
                 current_duration[0] = res.get("duration", 0.0)
 
                 lbl_song_title.config(text=f"🎵 {info.get('title', 'Suno Track')}")
-                dur_m = int(res['duration'] // 60)
-                dur_s = int(res['duration'] % 60)
-                lbl_song_meta.config(text=f"🏷️ {info.get('tags') or 'Sin estilo'}  |  ⏱️ {dur_m}:{dur_s:02d}  |  💿 {chosen_fmt.upper()}")
+                dur_m = int(res["duration"] // 60)
+                dur_s = int(res["duration"] % 60)
+                lbl_song_meta.config(
+                    text=f"🏷️ {info.get('tags') or 'Sin estilo'}  |  ⏱️ {dur_m}:{dur_s:02d}  |  💿 {chosen_fmt.upper()}"
+                )
 
                 txt_lyrics.config(state="normal")
                 txt_lyrics.delete("1.0", "end")
@@ -1477,18 +1735,25 @@ def launch_gui():
                         pass
 
                 progress_bar["value"] = 100
-                status_var.set(f"✅ ¡{chosen_fmt.upper()} descargado con éxito! ({os.path.basename(res['audio_path'])})")
-                btn_play.config(state="normal", text=f"▶️ Reproducir {chosen_fmt.upper()}")
+                status_var.set(
+                    f"✅ ¡{chosen_fmt.upper()} descargado con éxito! ({os.path.basename(res['audio_path'])})"
+                )
+                btn_play.config(
+                    state="normal", text=f"▶️ Reproducir {chosen_fmt.upper()}"
+                )
                 btn_sample_create.config(state="normal")
                 btn_stem_separate.config(state="normal")
                 messagebox.showinfo(
                     "¡Descarga Exitosa!",
-                    f"Canción {chosen_fmt.upper()} lista:\n\n{info.get('title')}\nDuración: {dur_m}:{dur_s:02d}\n\nUbicación:\n{res['audio_path']}"
+                    f"Canción {chosen_fmt.upper()} lista:\n\n{info.get('title')}\nDuración: {dur_m}:{dur_s:02d}\n\nUbicación:\n{res['audio_path']}",
                 )
 
             except Exception as e:
                 status_var.set(f"❌ Error: {str(e)}")
-                messagebox.showerror("Error de Descarga", f"Ocurrió un error al procesar el enlace:\n\n{str(e)}")
+                messagebox.showerror(
+                    "Error de Descarga",
+                    f"Ocurrió un error al procesar el enlace:\n\n{str(e)}",
+                )
             finally:
                 set_ui_loading(False)
 
@@ -1513,7 +1778,7 @@ def launch_gui():
         font=("Segoe UI", 10, "bold"),
         padx=10,
         pady=8,
-        cursor="hand2"
+        cursor="hand2",
     )
     btn_paste.pack(side="left", padx=(0, 8))
 
@@ -1528,7 +1793,7 @@ def launch_gui():
         relief="flat",
         font=("Segoe UI", 11, "bold"),
         pady=8,
-        cursor="hand2"
+        cursor="hand2",
     )
     btn_download.pack(side="left", fill="x", expand=True)
 
@@ -1549,7 +1814,7 @@ def launch_gui():
         padx=8,
         pady=8,
         state="disabled",
-        cursor="hand2"
+        cursor="hand2",
     )
     btn_play.pack(side="left", padx=(8, 0))
 
@@ -1569,7 +1834,7 @@ def launch_gui():
         font=("Segoe UI", 10),
         padx=8,
         pady=8,
-        cursor="hand2"
+        cursor="hand2",
     )
     btn_open_folder.pack(side="right", padx=(8, 0))
 
@@ -1578,5 +1843,3 @@ def launch_gui():
 
 if __name__ == "__main__":
     launch_cli()
-
-

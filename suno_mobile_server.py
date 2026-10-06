@@ -1398,7 +1398,11 @@ async def api_download(req: DownloadRequest, background_tasks: BackgroundTasks):
             suggested_sec = 30
         elif duration > 180:
             suggested_sec = 120
-        suggested_formatted = f"{int(suggested_sec // 60)} min" if suggested_sec >= 60 else f"{int(suggested_sec)} seg"
+        suggested_formatted = (
+            f"{int(suggested_sec // 60)} min"
+            if suggested_sec >= 60
+            else f"{int(suggested_sec)} seg"
+        )
 
         cover_url = ""
         if res.get("cover_path") and os.path.exists(res["cover_path"]):
@@ -1426,7 +1430,7 @@ async def api_download(req: DownloadRequest, background_tasks: BackgroundTasks):
             "duration_seconds": duration,
             "duration_formatted": duration_formatted,
             "suggested_sample_seconds": suggested_sec,
-            "suggested_sample_formatted": suggested_formatted
+            "suggested_sample_formatted": suggested_formatted,
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -1442,14 +1446,18 @@ async def api_separate_stems(req: SeparateRequest, background_tasks: BackgroundT
 
         input_path = os.path.join(DOWNLOADS_DIR, filename)
         if not os.path.exists(input_path):
-            raise HTTPException(status_code=404, detail="El archivo no existe en descargas")
+            raise HTTPException(
+                status_code=404, detail="El archivo no existe en descargas"
+            )
 
-        fmt = (req.format or ("wav" if filename.lower().endswith(".wav") else "mp3")).lower().strip()
+        fmt = (
+            (req.format or ("wav" if filename.lower().endswith(".wav") else "mp3"))
+            .lower()
+            .strip()
+        )
 
         sep_res = scraper.separate_vocals_and_instrumental(
-            input_audio=input_path,
-            output_dir=DOWNLOADS_DIR,
-            output_format=fmt
+            input_audio=input_path, output_dir=DOWNLOADS_DIR, output_format=fmt
         )
 
         inst_file = sep_res["instrumental_filename"]
@@ -1457,7 +1465,9 @@ async def api_separate_stems(req: SeparateRequest, background_tasks: BackgroundT
 
         # Schedule auto-deletion in 5 minutes (300s)
         if sep_res.get("instrumental_path"):
-            background_tasks.add_task(delayed_remove_file, sep_res["instrumental_path"], 300)
+            background_tasks.add_task(
+                delayed_remove_file, sep_res["instrumental_path"], 300
+            )
         if sep_res.get("vocals_path"):
             background_tasks.add_task(delayed_remove_file, sep_res["vocals_path"], 300)
 
@@ -1468,7 +1478,7 @@ async def api_separate_stems(req: SeparateRequest, background_tasks: BackgroundT
             "vocals_filename": vocal_file,
             "vocals_url": f"/downloads/{urllib.parse.quote(vocal_file)}",
             "duration": sep_res.get("duration", 0.0),
-            "format": fmt
+            "format": fmt,
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -1484,7 +1494,9 @@ async def api_generate_sample(req: SampleRequest, background_tasks: BackgroundTa
 
         input_path = os.path.join(DOWNLOADS_DIR, filename)
         if not os.path.exists(input_path):
-            raise HTTPException(status_code=404, detail="El archivo base no existe en descargas")
+            raise HTTPException(
+                status_code=404, detail="El archivo base no existe en descargas"
+            )
 
         total_dur = scraper.get_audio_duration(input_path)
         duration_sec = req.duration_sec
@@ -1505,20 +1517,22 @@ async def api_generate_sample(req: SampleRequest, background_tasks: BackgroundTa
             input_mp3=input_path,
             duration_sec=duration_sec,
             start_sec=req.start_sec or 0.0,
-            apply_fade=True
+            apply_fade=True,
         )
 
         sample_filename = sample_res["filename"]
         # Schedule auto-deletion in 5 minutes (300s)
         if sample_res.get("sample_path"):
-            background_tasks.add_task(delayed_remove_file, sample_res["sample_path"], 300)
+            background_tasks.add_task(
+                delayed_remove_file, sample_res["sample_path"], 300
+            )
 
         return {
             "success": True,
             "filename": sample_filename,
             "sample_url": f"/downloads/{urllib.parse.quote(sample_filename)}",
             "sample_duration": sample_res["actual_sample_duration"],
-            "total_duration": sample_res["total_duration"]
+            "total_duration": sample_res["total_duration"],
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -1548,11 +1562,7 @@ async def download_file_endpoint(filename: str, background_tasks: BackgroundTask
     # so that transmission finishes and server space is then freed up
     background_tasks.add_task(delayed_remove_file, file_path, 120)
 
-    return FileResponse(
-        file_path,
-        media_type=media_type,
-        filename=filename
-    )
+    return FileResponse(file_path, media_type=media_type, filename=filename)
 
 
 @app.get("/api/files")
@@ -1565,14 +1575,11 @@ async def list_downloaded_files():
                 full_path = os.path.join(DOWNLOADS_DIR, f)
                 mtime = os.path.getmtime(full_path)
                 file_entries.append((mtime, f))
-        
+
         file_entries.sort(key=lambda x: x[0], reverse=True)
         for _, f in file_entries[:30]:
             clean_name = f.rsplit(".", 1)[0]
-            files.append({
-                "filename": f,
-                "name": clean_name
-            })
+            files.append({"filename": f, "name": clean_name})
     return files
 
 
@@ -1581,14 +1588,14 @@ def run_server():
     port = 8000
     mobile_url = f"http://{local_ip}:{port}"
 
-    print("\n" + "="*58)
+    print("\n" + "=" * 58)
     print(" 🚀 SERVIDOR MÓVIL DE SUNO AI ACTIVADO (HQ)")
-    print("="*58)
+    print("=" * 58)
     print(f"\n📲 ABRE ESTE ENLACE EN EL NAVEGADOR DE TU CELULAR:\n")
     print(f"👉 \033[92m{mobile_url}\033[0m\n")
-    print("="*58)
+    print("=" * 58)
     print("📷 O ESCANEA ESTE CÓDIGO QR CON LA CÁMARA DE TU CELULAR:")
-    print("="*58 + "\n")
+    print("=" * 58 + "\n")
 
     try:
         qr = qrcode.QRCode(border=1)
@@ -1598,10 +1605,10 @@ def run_server():
     except Exception:
         pass
 
-    print("\n" + "-"*58)
+    print("\n" + "-" * 58)
     print("💡 Asegúrate de que tu celular esté conectado al mismo Wi-Fi.")
     print("Presiona Ctrl + C en esta ventana para detener el servidor.")
-    print("-"*58 + "\n")
+    print("-" * 58 + "\n")
 
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
