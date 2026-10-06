@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Suno AI Downloader & HQ Track Separator</title>
+
+    <link rel="icon" href="{{ url_for('static', path='favicon.ico') }}">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="{{ url_for('static',path='css/style.css' ) }}">
+
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="logo-badge">⚡ Suno Downloader HQ</div>
+            <h1>Download & Separate Tracks</h1>
+            <p class="subtitle">Preview, listen online, and download in MP3/WAV, or separate vocals and instrumental</p>
+            <div class="server-status-pill">
+                🛡️ Ephemeral Server Mode: Downloads and samples are automatically removed after 5 minutes to save
+                space.
+            </div>
+        </header>
+
+        <div class="card">
+            <!-- Format Selector -->
+            <div class="format-selector">
+                <button class="format-tab active" id="tabMp3" onclick="setFormat('mp3')">
+                    🎵 MP3 (320 kbps)
+                </button>
+                <button class="format-tab" id="tabWav" onclick="setFormat('wav')">
+                    💿 WAV (Lossless PCM)
+                </button>
+            </div>
+
+            <div class="input-group">
+                <input type="text" id="sunoUrl" placeholder="https://suno.com/song/..." autocomplete="off">
+                <button class="paste-btn" onclick="pasteFromClipboard()">Paste</button>
+            </div>
+
+            <button class="btn-download" id="btnDownload" onclick="startDownload()">
+                <span>🎧 LOAD, LISTEN, AND DOWNLOAD</span>
+            </button>
+
+            <div id="statusBadge" class="status-badge" style="display: none;"></div>
+
+            <!-- Result Box -->
+            <div class="result-box" id="resultBox">
+                <!-- Song Metadata Preview -->
+                <div class="song-info">
+                    <img id="resCover" class="cover-img" src="" alt="Cover">
+                    <div class="song-details">
+                        <div class="song-title" id="resTitle">Title</div>
+                        <div class="song-tags" id="resTags">Style</div>
+                        <div class="badges-row">
+                            <span class="song-duration-badge" id="resDuration">⏱️ 0:00</span>
+                            <span class="song-format-badge" id="resFormat">MP3</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Full Track Player with Soundwave -->
+                <div class="player-box">
+                    <div class="player-header">
+                        <span class="player-title">🎵 Play Full Song</span>
+                        <div class="soundwave" id="waveMain">
+                            <span></span><span></span><span></span><span></span>
+                        </div>
+                    </div>
+                    <audio id="resAudio" class="audio-player" controls preload="metadata"
+                        onplay="setWave('waveMain', true)" onpause="setWave('waveMain', false)"
+                        onended="setWave('waveMain', false)">
+                        Your browser does not support the audio player.
+                    </audio>
+                    <a id="resDownloadLink" class="btn-save-phone" href="" download>
+                        📥 Save Full Song
+                    </a>
+                </div>
+
+                <!-- 🎤 Dedicated Vocal & Instrumental Stem Separation Section -->
+                <div class="stem-section">
+                    <div class="stem-header">
+                        <div class="stem-title">
+                            <span>🎤 Separate Track and Vocals (Stems)</span>
+                        </div>
+                        <span class="stem-tag">AI DSP</span>
+                    </div>
+                    <p class="stem-desc">
+                        Separate the music into two individual tracks to listen online before saving:
+                    </p>
+
+                    <button class="btn-create-stem" id="btnCreateStem" onclick="separateStems()">
+                        <span>✨ SEPARATE INTO TRACK AND VOCALS</span>
+                    </button>
+
+                    <!-- Stem Results Sub-Box -->
+                    <div class="stem-result-box" id="stemResultBox">
+                        <!-- Instrumental Card -->
+                        <div class="stem-card">
+                            <div class="stem-card-header">
+                                <div class="stem-card-title inst">
+                                    <span>🎹 Instrumental Track (Music / Karaoke)</span>
+                                </div>
+                                <div class="soundwave" id="waveInst">
+                                    <span></span><span></span><span></span><span></span>
+                                </div>
+                            </div>
+                            <div class="stem-card-desc">Listen to the vocal-free instrumental (bass and kick drums
+                                intact):</div>
+                            <audio id="instAudioPlayer" class="audio-player" controls preload="metadata"
+                                onplay="setWave('waveInst', true)" onpause="setWave('waveInst', false)"
+                                onended="setWave('waveInst', false)"></audio>
+                            <a id="instDownloadLink" class="btn-save-stem-inst" href="" download>
+                                📥 Save Instrumental Track
+                            </a>
+                        </div>
+
+                        <!-- Vocal Card -->
+                        <div class="stem-card">
+                            <div class="stem-card-header">
+                                <div class="stem-card-title vocal">
+                                    <span>🎙️ Vocals Only (Acapella / Vocals)</span>
+                                </div>
+                                <div class="soundwave" id="waveVocal">
+                                    <span></span><span></span><span></span><span></span>
+                                </div>
+                            </div>
+                            <div class="stem-card-desc">Listen to the clean, isolated vocal track:</div>
+                            <audio id="vocalAudioPlayer" class="audio-player" controls preload="metadata"
+                                onplay="setWave('waveVocal', true)" onpause="setWave('waveVocal', false)"
+                                onended="setWave('waveVocal', false)"></audio>
+                            <a id="vocalDownloadLink" class="btn-save-stem-vocal" href="" download>
+                                📥 Save Vocals Only
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ✂️ Dedicated Sample Download Section -->
+                <div class="sample-section">
+                    <div class="sample-header">
+                        <div class="sample-title">
+                            <span>✂️ Trimmed Sample (Preview)</span>
+                        </div>
+                        <span class="sample-tag">Clip</span>
+                    </div>
+                    <p class="sample-desc" id="sampleDescText">
+                        Generate a song excerpt with fade processing for a quick preview:
+                    </p>
+
+                    <div class="preset-grid">
+                        <button class="preset-btn" onclick="selectPreset('30s', this)">⚡ 30s</button>
+                        <button class="preset-btn" onclick="selectPreset('60s', this)">⏱️ 1 min</button>
+                        <button class="preset-btn" onclick="selectPreset('120s', this)">⏳ 2 min</button>
+                        <button class="preset-btn active" onclick="selectPreset('auto', this)">✨ Auto</button>
+                    </div>
+
+                    <button class="btn-create-sample" id="btnCreateSample" onclick="generateSample()">
+                        <span>✂️ GENERATE SAMPLE</span>
+                    </button>
+
+                    <!-- Sample Result Sub-Box -->
+                    <div class="sample-result-box" id="sampleResultBox">
+                        <div class="player-header" style="margin-bottom: 6px;">
+                            <span style="font-size: 12px; color: var(--accent); font-weight: 600;"
+                                id="sampleResultLabel">
+                                🎧 Listen to Sample:
+                            </span>
+                            <div class="soundwave" id="waveSample">
+                                <span></span><span></span><span></span><span></span>
+                            </div>
+                        </div>
+                        <audio id="sampleAudioPlayer" class="audio-player" controls preload="metadata"
+                            onplay="setWave('waveSample', true)" onpause="setWave('waveSample', false)"
+                            onended="setWave('waveSample', false)"></audio>
+                        <a id="sampleDownloadLink" class="btn-save-sample" href="" download>
+                            📥 Save Sample
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="history-title">📂 Files on Your Server</div>
+        <div id="historyList"></div>
+    </div>
+
+
+
+    <script src="{{ url_for('static',path='js/app.js' ) }}"></script>
+
+</body>
+
+</html>
