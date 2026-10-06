@@ -13,16 +13,34 @@ import socket
 import urllib.parse
 import time
 import asyncio
-from typing import Optional, Dict, Any, List
+from typing import (
+    Optional,
+    # Dict,
+    # Any,
+    # List,
+)
 import qrcode
 import uvicorn
-from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import (
+    FastAPI,
+    # Request,
+    HTTPException,
+    BackgroundTasks,
+)
+from fastapi.responses import (
+    HTMLResponse,
+    FileResponse,
+    JSONResponse,
+)
+
+# from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 # Import the audio download and processing engine
-from suno_downloader import SunoScraper, sanitize_filename
+from suno_downloader import (
+    SunoScraper,
+    # sanitize_filename,
+)
 
 # Ensure UTF-8 in Windows console
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):

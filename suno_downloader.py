@@ -10,18 +10,22 @@ suno_downloader.py
 import os
 import re
 import sys
-import json
+
+# import json
 import base64
 import hashlib
 import subprocess
-import urllib.parse
+
+# import urllib.parse
 from typing import Optional, Dict, Any, Callable
 import requests
 from bs4 import BeautifulSoup
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.backends import default_backend
-import imageio_ffmpeg
+
+
+import imageio_ffmpeg  # type: ignore This was pystub issu
 
 # Configure secure encoding for console in Windows
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
