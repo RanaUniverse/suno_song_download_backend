@@ -115,7 +115,7 @@ class SunoScraper:
             if song_id:
                 url = f"https://suno.com/song/{song_id}"
             else:
-                raise ValueError(f"URL o ID no válido: {url}")
+                raise ValueError(f"Invalid URL or ID: {url}")
 
         # If it is a short link /s/CODE, try to resolve it using the official Suno API
         share_match = re.search(r"/s/([a-zA-Z0-9_\-]+)", url)
@@ -1145,7 +1145,7 @@ def launch_gui():
 
     lbl_sub = tk.Label(
         header_frame,
-        text="Descarga MP3 / WAV + Separador de Pista y Voz",
+        text="MP3 / WAV Download + Track and Vocal Separator",
         font=("Segoe UI", 10, "italic"),
         fg="#888899",
         bg="#1a1a1e",
@@ -1159,7 +1159,7 @@ def launch_gui():
     # URL Input Section
     lbl_url = tk.Label(
         main_frame,
-        text="Pega el enlace compartido de Suno (ej. https://suno.com/song/...):",
+        text="Paste the shared Suno link (e.g. https://suno.com/song/...):",
         font=("Segoe UI", 10, "bold"),
         fg="#E1E1E6",
         bg="#121214",
@@ -1239,7 +1239,7 @@ def launch_gui():
 
     chk_meta = tk.Checkbutton(
         opts_frame,
-        text="Letra (.txt)",
+        text="Lyrics (.txt)",
         variable=var_meta,
         bg="#121214",
         fg="#A8A8B3",
@@ -1299,7 +1299,7 @@ def launch_gui():
     progress_bar.pack(fill="x", pady=(0, 4))
 
     status_var = tk.StringVar(
-        value="Listo. Pega un enlace de Suno y presiona 'Descargar Canción'."
+        value="Ready. Paste a Suno link and press 'Download Song'."
     )
     lbl_status = tk.Label(
         main_frame,
@@ -1324,7 +1324,7 @@ def launch_gui():
 
     lbl_song_title = tk.Label(
         details_frame,
-        text="Título: --",
+        text="Title: --",
         font=("Segoe UI", 11, "bold"),
         fg="#FFFFFF",
         bg="#1a1a1e",
@@ -1334,7 +1334,7 @@ def launch_gui():
 
     lbl_song_meta = tk.Label(
         details_frame,
-        text="Estilo: -- | Duración: --",
+        text="Style: -- | Duration: --",
         font=("Segoe UI", 9),
         fg="#FF0080",
         bg="#1a1a1e",
@@ -1352,13 +1352,13 @@ def launch_gui():
         bd=0,
     )
     txt_lyrics.pack(fill="x", expand=True)
-    txt_lyrics.insert("1.0", "Letra / Prompt aparecerá aquí...")
+    txt_lyrics.insert("1.0", "Lyrics / prompt will appear here...")
     txt_lyrics.config(state="disabled")
 
     # Sample Controls Frame (Audio Samples)
     sample_box = tk.LabelFrame(
         main_frame,
-        text=" ✂️ MUESTRA DE AUDIO (PREVIEW - DIRECTO SIN DESCARGAR COMPLETA) ",
+        text=" ✂️ AUDIO SAMPLE (PREVIEW - DIRECT WITHOUT FULL DOWNLOAD) ",
         font=("Segoe UI", 9, "bold"),
         fg="#00DFD8",
         bg="#18181c",
@@ -1371,18 +1371,18 @@ def launch_gui():
     sample_inner.pack(fill="x", padx=10, pady=3)
 
     lbl_sample_opt = tk.Label(
-        sample_inner, text="Duración:", font=("Segoe UI", 9), fg="#E1E1E6", bg="#18181c"
+        sample_inner, text="Duration:", font=("Segoe UI", 9), fg="#E1E1E6", bg="#18181c"
     )
     lbl_sample_opt.pack(side="left", padx=(0, 6))
 
     sample_options = [
-        "⚡ 30 Segundos",
-        "⏱️ 1 Minuto (60s)",
-        "⏳ 2 Minutos (120s)",
-        "🌓 Mitad de Canción (50%)",
-        "✨ Auto (Recomendada)",
+        "⚡ 30 Seconds",
+        "⏱️ 1 Minute (60s)",
+        "⏳ 2 Minutes (120s)",
+        "🌓 Half the Song (50%)",
+        "✨ Auto (Recommended)",
     ]
-    sample_choice_var = tk.StringVar(value="✨ Auto (Recomendada)")
+    sample_choice_var = tk.StringVar(value="✨ Auto (Recommended)")
     sample_combo = ttk.Combobox(
         sample_inner,
         textvariable=sample_choice_var,
@@ -1400,8 +1400,8 @@ def launch_gui():
 
         if not has_full_download and not url:
             messagebox.showwarning(
-                "Enlace Requerido",
-                "Por favor pega el enlace de la canción de Suno en la casilla de arriba para generar la muestra.",
+                "Link Required",
+                "Please paste the Suno song link in the box above to generate a sample.",
             )
             url_entry.focus_set()
             return
@@ -1414,11 +1414,11 @@ def launch_gui():
 
         if "30" in choice:
             dur = 30.0
-        elif "1 Minuto" in choice or "60s" in choice:
+        elif "1 Minute" in choice or "60s" in choice:
             dur = 60.0
-        elif "2 Minutos" in choice or "120s" in choice:
+        elif "2 Minutes" in choice or "120s" in choice:
             dur = 120.0
-        elif "Mitad" in choice:
+        elif "Half" in choice:
             dur = (
                 "half"
                 if not has_full_download
@@ -1428,15 +1428,15 @@ def launch_gui():
             dur = None
             # auto
 
-        status_var.set("Preparando muestra de audio...")
+        status_var.set("Preparing audio sample...")
         progress_bar["value"] = 15
-        btn_sample_create.config(state="disabled", text="⏳ Creando...")
+        btn_sample_create.config(state="disabled", text="⏳ Creating...")
         btn_download.config(state="disabled")
 
         def sample_task():
             try:
                 if has_full_download:
-                    status_var.set("Generando muestra desde el archivo descargado...")
+                    status_var.set("Generating sample from the downloaded file...")
                     s_res = scraper.create_audio_sample(
                         last_audio_file[0],
                         duration_sec=dur if isinstance(dur, (int, float)) else None,
@@ -1449,10 +1449,10 @@ def launch_gui():
                             mb_d = downloaded / (1024 * 1024)
                             mb_t = total / (1024 * 1024)
                             status_var.set(
-                                f"[Muestra: {stage.capitalize()}] {percent:.1f}% ({mb_d:.2f}MB / {mb_t:.2f}MB)"
+                                f"[Sample: {stage.capitalize()}] {percent:.1f}% ({mb_d:.2f}MB / {mb_t:.2f}MB)"
                             )
                         else:
-                            status_var.set(f"[Muestra] {stage.capitalize()}...")
+                            status_var.set(f"[Sample] {stage.capitalize()}...")
 
                     s_res = scraper.download_sample_direct(
                         url,
@@ -1474,14 +1474,14 @@ def launch_gui():
                         dur_s = int(tot_dur % 60)
                         fmt_label = var_format.get().upper()
                         lbl_song_meta.config(
-                            text=f"🏷️ {info.get('tags') or 'Sin estilo'}  |  ⏱️ Total: {dur_m}:{dur_s:02d}  |  ✂️ Muestra: {s_res['actual_sample_duration']:.1f}s  |  💿 {fmt_label}"
+                            text=f"🏷️ {info.get('tags') or 'No style'}  |  ⏱️ Total: {dur_m}:{dur_s:02d}  |  ✂️ Sample: {s_res['actual_sample_duration']:.1f}s  |  💿 {fmt_label}"
                         )
                         current_duration[0] = tot_dur
 
                         txt_lyrics.config(state="normal")
                         txt_lyrics.delete("1.0", "end")
                         txt_lyrics.insert(
-                            "1.0", info.get("prompt") or "Sin letra disponible."
+                            "1.0", info.get("prompt") or "No lyrics available."
                         )
                         txt_lyrics.config(state="disabled")
 
@@ -1500,32 +1500,32 @@ def launch_gui():
                 last_sample_file[0] = s_res["sample_path"]
                 progress_bar["value"] = 100
                 status_var.set(
-                    f"✅ ¡Muestra ({s_res['actual_sample_duration']:.1f}s) guardada con éxito! ({os.path.basename(s_res['sample_path'])})"
+                    f"✅ Sample ({s_res['actual_sample_duration']:.1f}s) saved successfully! ({os.path.basename(s_res['sample_path'])})"
                 )
-                btn_sample_play.config(state="normal", text="▶️ Reproducir Muestra")
+                btn_sample_play.config(state="normal", text="▶️ Play Sample")
                 messagebox.showinfo(
-                    "¡Muestra Creada con Éxito!",
-                    f"Muestra generada sin descargar la canción completa:\n\n"
-                    f"🎵 Título: {s_res.get('info', {}).get('title', os.path.basename(s_res['sample_path']))}\n"
-                    f"⏱️ Duración de la muestra: {s_res['actual_sample_duration']:.1f}s\n"
-                    f"🎧 Archivo: {os.path.basename(s_res['sample_path'])}\n"
-                    f"📂 Ubicación:\n{s_res['sample_path']}",
+                    "Sample Created Successfully!",
+                    f"Sample generated without downloading the full song:\n\n"
+                    f"🎵 Title: {s_res.get('info', {}).get('title', os.path.basename(s_res['sample_path']))}\n"
+                    f"⏱️ Sample duration: {s_res['actual_sample_duration']:.1f}s\n"
+                    f"🎧 File: {os.path.basename(s_res['sample_path'])}\n"
+                    f"📂 Location:\n{s_res['sample_path']}",
                 )
             except Exception as e:
-                status_var.set(f"❌ Error al crear muestra: {str(e)}")
+                status_var.set(f"❌ Error creating sample: {str(e)}")
                 messagebox.showerror(
-                    "Error de Muestra", f"No se pudo crear la muestra:\n\n{str(e)}"
+                    "Sample Error", f"The sample could not be created:\n\n{str(e)}"
                 )
             finally:
                 progress_bar["value"] = 0
-                btn_sample_create.config(state="normal", text="✂️ Descargar Muestra")
+                btn_sample_create.config(state="normal", text="✂️ Download Sample")
                 btn_download.config(state="normal")
 
         threading.Thread(target=sample_task, daemon=True).start()
 
     btn_sample_create = tk.Button(
         sample_inner,
-        text="✂️ Descargar Muestra",
+        text="✂️ Download Sample",
         command=generate_sample_action,
         bg="#00DFD8",
         fg="#000000",
@@ -1560,7 +1560,7 @@ def launch_gui():
     # 🎤 Stem Separation Frame (Track and Vocal Separator)
     stem_box = tk.LabelFrame(
         main_frame,
-        text=" 🎤 SEPARADOR DE PISTA Y VOZ (STEMS) ",
+        text=" 🎤 TRACK AND VOCAL SEPARATOR (STEMS) ",
         font=("Segoe UI", 9, "bold"),
         fg="#FF0080",
         bg="#18181c",
@@ -1574,7 +1574,7 @@ def launch_gui():
 
     lbl_stem_desc = tk.Label(
         stem_inner,
-        text="Aísla la pista instrumental y la voz/acapella en pistas separadas:",
+        text="Isolate the instrumental and vocal/acapella into separate tracks:",
         font=("Segoe UI", 8),
         fg="#A8A8B3",
         bg="#18181c",
@@ -1587,15 +1587,15 @@ def launch_gui():
     def separate_stems_action():
         if not last_audio_file[0] or not os.path.exists(last_audio_file[0]):
             messagebox.showwarning(
-                "Primero descarga la canción",
-                "Debes descargar una canción antes de separar la pista y la voz.",
+                "Download the Song First",
+                "You must download a song before separating the track and vocals.",
             )
             return
 
         status_var.set(
-            "Separando pista instrumental y voz con filtros DSP de alta fidelidad..."
+            "Separating instrumental track and vocals with high-fidelity DSP filters..."
         )
-        btn_stem_separate.config(state="disabled", text="⏳ Separando...")
+        btn_stem_separate.config(state="disabled", text="⏳ Separating...")
 
         def stem_task():
             try:
@@ -1604,24 +1604,30 @@ def launch_gui():
                 )
                 last_inst_file[0] = sep_res["instrumental_path"]
                 last_vocal_file[0] = sep_res["vocals_path"]
-                status_var.set("✅ ¡Pista instrumental y voz separadas con éxito!")
+                status_var.set(
+                    "✅ Instrumental track and vocals separated successfully!"
+                )
                 btn_play_inst.config(state="normal")
                 btn_play_vocal.config(state="normal")
                 messagebox.showinfo(
-                    "Separación Exitosa",
-                    f"¡Pistas generadas!\n\n🎹 Instrumental:\n{sep_res['instrumental_filename']}\n\n🎙️ Solo Voz:\n{sep_res['vocals_filename']}",
+                    "Separation Successful",
+                    f"Tracks generated!\n\n🎹 Instrumental:\n{sep_res['instrumental_filename']}\n\n🎙️ Vocals Only:\n{sep_res['vocals_filename']}",
                 )
             except Exception as e:
-                status_var.set(f"❌ Error al separar: {str(e)}")
-                messagebox.showerror("Error", f"No se pudo separar el audio: {str(e)}")
+                status_var.set(f"❌ Error separating: {str(e)}")
+                messagebox.showerror(
+                    "Error", f"The audio could not be separated: {str(e)}"
+                )
             finally:
-                btn_stem_separate.config(state="normal", text="✨ Separar Pista y Voz")
+                btn_stem_separate.config(
+                    state="normal", text="✨ Separate Track and Vocals"
+                )
 
         threading.Thread(target=stem_task, daemon=True).start()
 
     btn_stem_separate = tk.Button(
         stem_btn_row,
-        text="✨ Separar Pista y Voz",
+        text="✨ Separate Track and Vocals",
         command=separate_stems_action,
         bg="#FF0080",
         fg="#FFFFFF",
@@ -1640,7 +1646,7 @@ def launch_gui():
 
     btn_play_inst = tk.Button(
         stem_btn_row,
-        text="🎹 Pista Instrumental",
+        text="🎹 Instrumental Track",
         command=play_inst_audio,
         bg="#29292E",
         fg="#00DFD8",
@@ -1659,7 +1665,7 @@ def launch_gui():
 
     btn_play_vocal = tk.Button(
         stem_btn_row,
-        text="🎙️ Solo Voz",
+        text="🎙️ Vocals Only",
         command=play_vocal_audio,
         bg="#29292E",
         fg="#FF0080",
@@ -1679,13 +1685,13 @@ def launch_gui():
     def set_ui_loading(is_loading: bool):
         if is_loading:
             btn_download.config(
-                state="disabled", text="⏳ Descifrando y Descargando..."
+                state="disabled", text="⏳ Decrypting and Downloading..."
             )
             btn_paste.config(state="disabled")
             btn_sample_create.config(state="disabled")
             btn_stem_separate.config(state="disabled")
         else:
-            btn_download.config(state="normal", text="🚀 DESCARGAR CANCIÓN")
+            btn_download.config(state="normal", text="🚀 DOWNLOAD SONG")
             btn_paste.config(state="normal")
             btn_sample_create.config(state="normal")
             if last_audio_file[0] and os.path.exists(last_audio_file[0]):
@@ -1694,14 +1700,12 @@ def launch_gui():
     def run_download_thread():
         url = url_entry.get().strip()
         if not url:
-            messagebox.showwarning(
-                "URL requerida", "Por favor pega el enlace compartido de Suno."
-            )
+            messagebox.showwarning("URL Required", "Please paste the shared Suno link.")
             return
 
         set_ui_loading(True)
         progress_bar["value"] = 0
-        status_var.set("Conectando y obteniendo licencia de audio...")
+        status_var.set("Connecting and retrieving the audio license...")
 
         def task():
             try:
@@ -1715,7 +1719,7 @@ def launch_gui():
                             f"[{stage.capitalize()}] {percent:.1f}% ({mb_d:.2f} MB / {mb_t:.2f} MB)"
                         )
                     else:
-                        status_var.set(f"Procesando: {stage}...")
+                        status_var.set(f"Processing: {stage}...")
 
                 chosen_fmt = var_format.get()
                 res = scraper.download_song(
@@ -1735,12 +1739,12 @@ def launch_gui():
                 dur_m = int(res["duration"] // 60)
                 dur_s = int(res["duration"] % 60)
                 lbl_song_meta.config(
-                    text=f"🏷️ {info.get('tags') or 'Sin estilo'}  |  ⏱️ {dur_m}:{dur_s:02d}  |  💿 {chosen_fmt.upper()}"
+                    text=f"🏷️ {info.get('tags') or 'No style'}  |  ⏱️ {dur_m}:{dur_s:02d}  |  💿 {chosen_fmt.upper()}"
                 )
 
                 txt_lyrics.config(state="normal")
                 txt_lyrics.delete("1.0", "end")
-                lyrics_text = info.get("prompt") or "Sin letra disponible."
+                lyrics_text = info.get("prompt") or "No lyrics available."
                 txt_lyrics.insert("1.0", lyrics_text)
                 txt_lyrics.config(state="disabled")
 
@@ -1756,23 +1760,21 @@ def launch_gui():
 
                 progress_bar["value"] = 100
                 status_var.set(
-                    f"✅ ¡{chosen_fmt.upper()} descargado con éxito! ({os.path.basename(res['audio_path'])})"
+                    f"✅ {chosen_fmt.upper()} downloaded successfully! ({os.path.basename(res['audio_path'])})"
                 )
-                btn_play.config(
-                    state="normal", text=f"▶️ Reproducir {chosen_fmt.upper()}"
-                )
+                btn_play.config(state="normal", text=f"▶️ Play {chosen_fmt.upper()}")
                 btn_sample_create.config(state="normal")
                 btn_stem_separate.config(state="normal")
                 messagebox.showinfo(
-                    "¡Descarga Exitosa!",
-                    f"Canción {chosen_fmt.upper()} lista:\n\n{info.get('title')}\nDuración: {dur_m}:{dur_s:02d}\n\nUbicación:\n{res['audio_path']}",
+                    "Download Successful!",
+                    f"{chosen_fmt.upper()} song ready:\n\n{info.get('title')}\nDuration: {dur_m}:{dur_s:02d}\n\nLocation:\n{res['audio_path']}",
                 )
 
             except Exception as e:
                 status_var.set(f"❌ Error: {str(e)}")
                 messagebox.showerror(
-                    "Error de Descarga",
-                    f"Ocurrió un error al procesar el enlace:\n\n{str(e)}",
+                    "Download Error",
+                    f"An error occurred while processing the link:\n\n{str(e)}",
                 )
             finally:
                 set_ui_loading(False)
@@ -1804,7 +1806,7 @@ def launch_gui():
 
     btn_download = tk.Button(
         btn_frame,
-        text="🚀 DESCARGAR CANCIÓN",
+        text="🚀 DOWNLOAD SONG",
         command=run_download_thread,
         bg="#7928CA",
         fg="#FFFFFF",
@@ -1825,7 +1827,7 @@ def launch_gui():
 
     btn_play = tk.Button(
         btn_frame,
-        text="▶️ Reproducir",
+        text="▶️ Play",
         command=play_downloaded_audio,
         bg="#00DFD8",
         fg="#000000",
@@ -1846,7 +1848,7 @@ def launch_gui():
 
     btn_open_folder = tk.Button(
         btn_frame,
-        text="📂 Carpeta",
+        text="📂 Folder",
         command=open_downloads_folder,
         bg="#202024",
         fg="#A8A8B3",
