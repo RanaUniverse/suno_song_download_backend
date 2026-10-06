@@ -1,74 +1,72 @@
-# 🎵 Suno AI Downloader, WAV & Separador de Pistas HQ
+# 🎵 Suno AI Downloader, WAV & Stem Separator HQ
 
-Herramienta completa para descargar, descifrar canciones compartidas de **Suno.com** en **MP3 320 kbps** o **WAV Lossless (Audio sin compresión)**, extraer **muestras de audio (clips)** y **separar la pista instrumental y la voz (acapella)** con procesamiento DSP estéreo de alta fidelidad.
-
----
-
-## ✨ Nuevas Características
-
-- 💿 **Descarga en WAV Lossless (PCM 16-bit)**: Máxima fidelidad de audio para edición, producción y mezcla.
-- 🎵 **Descarga en MP3 estándar (320 kbps HQ)**: Compatibilidad total con reproductores y dispositivos móviles.
-- 🎤 **Separador de Pista y Voz (Stems)**:
-  - 🎹 **Pista Instrumental**: Aísla la música/karaoke preservando bombos, bajos y frecuencias rítmicas.
-  - 🎙️ **Solo Voz (Acapella)**: Aísla la voz limpia y formantes vocales para remixes o estudio.
-- ✂️ **Extractor de Muestras (Previews)**: Genera clips automáticos (30s, 1m, 2m) con desvanecimiento de entrada y salida (fade-in / fade-out).
+A comprehensive tool to download and decrypt shared songs from **Suno.com** in **MP3 320 kbps** or **WAV Lossless (Uncompressed Audio)**, extract **audio samples (clips)**, and **separate instrumental tracks from vocals (acapella)** with high-fidelity stereo DSP processing.
 
 ---
 
-## 🚀 Formas de Uso
+## ✨ New Features
 
-### 1. Desde tu Celular / Navegador Web (Recomendado para Móviles)
-Haz doble clic en:
-👉 `iniciar_para_celular.bat`
-
-- Abre la dirección IP mostrada o escanea el código QR con tu celular.
-- Elige el formato deseado: **MP3 (320 kbps)** o **WAV (Lossless)**.
-- **🎤 Separador de Pista y Voz**: Presiona *✨ SEPARAR EN PISTA Y VOZ* para generar y escuchar individualmente la pista instrumental y la voz, con botones de descarga directa a tu celular.
-- **✂️ Muestras**: Extrae clips de 30s, 1 min, 2 min o Auto.
+- 💿 **WAV Lossless Download (PCM 16-bit)**: Maximum audio fidelity for editing, production, and mixing.
+- 🎵 **Standard MP3 Download (320 kbps HQ)**: Full compatibility with players and mobile devices.
+- 🎤 **Track & Vocal Separator (Stems)**:
+  - 🎹 **Instrumental Track**: Isolates the music/karaoke while preserving kicks, bass, and rhythmic frequencies.
+  - 🎙️ **Vocals Only (Acapella)**: Isolates clean vocals and vocal formants for remixes or studio use.
+- ✂️ **Sample Extractor (Previews)**: Generates automatic clips (30s, 1m, 2m) with fade-in and fade-out effects.
 
 ---
 
-### 2. Con la Interfaz de Escritorio (GUI)
-Haz doble clic en:
-👉 `iniciar_suno_downloader.bat`
+## 🚀 How to Use
 
-- Selecciona el formato **MP3** o **WAV**.
-- Pega el enlace de Suno con el botón **📋 Pegar**.
-- Descarga la canción completa con su carátula y letras.
-- Usa el apartado **🎤 SEPARADOR DE PISTA Y VOZ** para generar y reproducir la Pista Instrumental y la Voz por separado.
-- Usa la sección **✂️ DESCARGAR MUESTRA** para guardar clips cortos.
+### 1. From Your Mobile Phone / Web Browser (Recommended for Mobile)
+Double-click on:
+👉 `start_for_mobile.bat`
+
+- Open the displayed IP address or scan the QR code with your phone.
+- Choose your desired format: **MP3 (320 kbps)** or **WAV (Lossless)**.
+- **🎤 Track & Vocal Separator**: Tap *✨ SEPARATE TRACK AND VOCALS* to generate and listen individually to the instrumental track and vocals, with direct download buttons for your phone.
+- **✂️ Samples**: Extract clips of 30s, 1 min, 2 min, or Auto.
 
 ---
 
-### 3. Desde la Terminal / Consola
+### 2. Using the Desktop Interface (GUI)
+Double-click on:
+👉 `start_suno_downloader.bat`
 
-#### Abrir la interfaz gráfica:
+- Select the **MP3** or **WAV** format.
+- Paste the Suno link using the **📋 Paste** button.
+- Download the complete song along with its cover art and lyrics.
+- Use the **🎤 TRACK & VOCAL SEPARATOR** section to generate and playback the Instrumental Track and Vocals separately.
+- Use the **✂️ DOWNLOAD SAMPLE** section to save short clips.
+
+---
+
+### 3. From the Terminal / Console
+
+#### Open the graphical interface:
 ```bash
 python suno_downloader.py --gui
 ```
 
-#### Descargar en WAV sin compresión:
+#### Download in uncompressed WAV:
 ```bash
-python suno_downloader.py https://suno.com/song/ID_DE_LA_CANCION -f wav
+python suno_downloader.py https://suno.com/song/SONG_ID -f wav
 ```
 
-#### Descargar y separar inmediatamente en Pista Instrumental y Voz:
+#### Download and immediately separate into Instrumental Track and Vocals:
 ```bash
-python suno_downloader.py https://suno.com/song/ID_DE_LA_CANCION --separate
+python suno_downloader.py https://suno.com/song/SONG_ID --separate
 ```
 
-#### Descargar en WAV, separar pista/voz y generar muestra:
+#### Download in WAV, separate track/vocals, and generate a sample:
 ```bash
-python suno_downloader.py https://suno.com/song/ID_DE_LA_CANCION -f wav --separate --sample 60
+python suno_downloader.py https://suno.com/song/SONG_ID -f wav --separate --sample 60
 ```
 
 ---
 
-## 🔗 Formatos de Enlace Compatibles
+## 🔗 Compatible Link Formats
 
 - `https://suno.com/song/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
-- `https://suno.com/s/xxxxxx` (enlaces acortados)
+- `https://suno.com/s/xxxxxx` (shortened links)
 - `https://app.suno.ai/song/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
-- O directamente el UUID: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
-
-
+- Or directly the UUID: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
