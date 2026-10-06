@@ -8,7 +8,8 @@ downloads*/
 .env
 .DS_Store
 
-# Archivos de análisis de datos y proyectos locales independientes
+"Data analysis files and independent local projects"
+
 PO.py
 practica.py
 titanic.csv
