@@ -239,6 +239,7 @@ class SunoScraper:
         stream_url: str,
         output_audio_path: str,
         audio_format: str = "mp3",
+        keep_m4a: bool = False,
         progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
     ) -> str:
         """
@@ -309,8 +310,26 @@ class SunoScraper:
         decryptor = cipher.decryptor()
         decrypted_audio = decryptor.update(encrypted_data) + decryptor.finalize()
 
-        # Save decrypted temporary file
-        temp_decrypted = output_audio_path + ".tmp.m4a"
+        fmt = audio_format.lower().strip()
+        if fmt not in {"m4a", "mp3", "wav"}:
+            raise ValueError(f"Unsupported audio format: {audio_format}")
+
+        # M4A is already the decrypted source stream. Write it directly to its
+        # final .m4a filename; do not invoke FFmpeg or perform a re-encode.
+        if fmt == "m4a":
+            with open(output_audio_path, "wb") as f:
+                f.write(decrypted_audio)
+            if progress_callback:
+                progress_callback("Completed", downloaded, total_size, 100.0)
+            return output_audio_path
+
+        # MP3/WAV need FFmpeg, so keep a short-lived M4A input only for those
+        # conversion requests. --keep-m4a preserves the same source beside it.
+        m4a_path = output_audio_path.rsplit(".", 1)[0] + ".m4a"
+        if keep_m4a:
+            with open(m4a_path, "wb") as f:
+                f.write(decrypted_audio)
+        temp_decrypted = output_audio_path + ".part.m4a"
         with open(temp_decrypted, "wb") as f:
             f.write(decrypted_audio)
 
@@ -318,7 +337,6 @@ class SunoScraper:
         if progress_callback:
             progress_callback("Converting", downloaded, total_size, 90.0)
 
-        fmt = audio_format.lower().strip()
         if fmt == "wav":
             cmd = [
                 self.ffmpeg_exe,
@@ -420,7 +438,7 @@ class SunoScraper:
             start_sec = max(0.0, start_sec)
             duration_sec = max(5.0, duration_sec)
 
-        is_wav = input_mp3.lower().endswith(".wav")
+        input_ext = os.path.splitext(input_mp3)[1].lower()
         if not output_sample_mp3:
             base, ext = os.path.splitext(input_mp3)
             dur_label = (
@@ -457,8 +475,10 @@ class SunoScraper:
         if filters:
             cmd.extend(["-af", ",".join(filters)])
 
-        if is_wav:
+        if input_ext == ".wav":
             cmd.extend(["-c:a", "pcm_s16le", output_sample_mp3])
+        elif input_ext == ".m4a":
+            cmd.extend(["-c:a", "aac", "-b:a", "192k", output_sample_mp3])
         else:
             cmd.extend(["-c:a", "libmp3lame", "-b:a", "320k", output_sample_mp3])
 
@@ -500,15 +520,20 @@ class SunoScraper:
         base_name = f"{clean_title} ({song_id[:8]})"
 
         fmt = audio_format.lower().strip()
-        ext = "wav" if fmt == "wav" else "mp3"
+        if fmt not in {"m4a", "mp3", "wav"}:
+            raise ValueError(f"Unsupported audio format: {audio_format}")
+        ext = fmt
 
         # 1. Check if the full song was already downloaded previously in the folder
         candidate_audio = os.path.join(output_dir, f"{base_name}.{ext}")
         if not os.path.exists(candidate_audio):
-            alt_ext = "mp3" if ext == "wav" else "wav"
-            alt_path = os.path.join(output_dir, f"{base_name}.{alt_ext}")
-            if os.path.exists(alt_path):
-                candidate_audio = alt_path
+            for alt_ext in ("m4a", "mp3", "wav"):
+                if alt_ext == ext:
+                    continue
+                alt_path = os.path.join(output_dir, f"{base_name}.{alt_ext}")
+                if os.path.exists(alt_path):
+                    candidate_audio = alt_path
+                    break
 
         if os.path.exists(candidate_audio) and os.path.getsize(candidate_audio) > 50000:
             tot = self.get_audio_duration(candidate_audio)
@@ -678,6 +703,8 @@ class SunoScraper:
 
             if ext == "wav":
                 cmd.extend(["-vn", "-c:a", "pcm_s16le", output_sample_file])
+            elif ext == "m4a":
+                cmd.extend(["-vn", "-c:a", "aac", "-b:a", "192k", output_sample_file])
             else:
                 cmd.extend(
                     ["-vn", "-c:a", "libmp3lame", "-b:a", "320k", output_sample_file]
@@ -753,10 +780,12 @@ class SunoScraper:
             .lower()
             .strip()
         )
+        if fmt not in {"m4a", "mp3", "wav"}:
+            raise ValueError(f"Unsupported audio format: {output_format}")
         codec_args = (
             ["-c:a", "pcm_s16le"]
             if fmt == "wav"
-            else ["-c:a", "libmp3lame", "-b:a", "320k"]
+            else (["-c:a", "aac", "-b:a", "192k"] if fmt == "m4a" else ["-c:a", "libmp3lame", "-b:a", "320k"])
         )
 
         instrumental_path = os.path.join(
@@ -869,11 +898,12 @@ class SunoScraper:
         url: str,
         output_dir: str = "downloads",
         audio_format: str = "mp3",
+        keep_m4a: bool = False,
         save_cover: bool = True,
         save_metadata: bool = True,
         progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
     ) -> Dict[str, Any]:
-        """Downloads, decrypts, and processes the full song in MP3 or WAV format."""
+        """Downloads, decrypts, and saves the full song as M4A, MP3, or WAV."""
         info = self.scrape_song_info(url)
         os.makedirs(output_dir, exist_ok=True)
 
@@ -882,26 +912,35 @@ class SunoScraper:
         base_name = f"{clean_title} ({song_id[:8]})"
 
         fmt = audio_format.lower().strip()
-        ext = "wav" if fmt == "wav" else "mp3"
+        if fmt not in {"m4a", "mp3", "wav"}:
+            raise ValueError(f"Unsupported audio format: {audio_format}")
+        ext = fmt
 
         result = {
             "info": info,
             "audio_path": None,
             "mp3_path": None,
+            "m4a_path": None,
             "format": ext,
             "cover_path": None,
             "metadata_path": None,
             "duration": 0.0,
         }
 
-        # Decrypt and Save Audio (MP3 or WAV)
+        # Decrypt and save audio (original M4A, MP3, or WAV)
         audio_out = os.path.join(output_dir, f"{base_name}.{ext}")
+        m4a_out = os.path.join(output_dir, f"{base_name}.m4a")
         stream_url = (
             info.get("audio_url")
             or f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
         )
 
-        if os.path.exists(audio_out) and os.path.getsize(audio_out) > 50000:
+        can_reuse_existing = (
+            os.path.exists(audio_out)
+            and os.path.getsize(audio_out) > 50000
+            and (not keep_m4a or ext == "m4a" or os.path.exists(m4a_out))
+        )
+        if can_reuse_existing:
             final_audio_path = audio_out
             if progress_callback:
                 progress_callback("Completed", 1, 1, 100.0)
@@ -911,10 +950,13 @@ class SunoScraper:
                 stream_url,
                 audio_out,
                 audio_format=ext,
+                keep_m4a=keep_m4a,
                 progress_callback=progress_callback,
             )
         result["audio_path"] = final_audio_path
         result["mp3_path"] = final_audio_path
+        if ext == "m4a" or keep_m4a:
+            result["m4a_path"] = m4a_out
         # Backward compatiability
         result["duration"] = self.get_audio_duration(final_audio_path)
 
@@ -958,12 +1000,17 @@ def launch_cli():
     parser.add_argument(
         "-f",
         "--format",
-        choices=["mp3", "wav"],
+        choices=["m4a", "mp3", "wav"],
         default="mp3",
-        help="Audio format: mp3 (320kbps) or wav (Lossless PCM)",
+        help="Audio format: m4a (original decrypted stream), mp3 (320kbps), or wav (lossless PCM)",
     )
     parser.add_argument(
         "--no-cover", action="store_true", help="Do not download cover art"
+    )
+    parser.add_argument(
+        "--keep-m4a",
+        action="store_true",
+        help="Also save the original decrypted M4A when downloading MP3 or WAV",
     )
     parser.add_argument(
         "--sample",
@@ -994,7 +1041,7 @@ def launch_cli():
 
     if not args.url:
         print(
-            "Usage: python suno_downloader.py https://suno.com/song/SONG_ID [-f wav] [--separate] [--sample 120] [--sample-only]"
+            "Usage: python suno_downloader.py https://suno.com/song/SONG_ID [-f m4a|mp3|wav] [--keep-m4a] [--separate] [--sample 120] [--sample-only]"
         )
         return
 
@@ -1048,6 +1095,7 @@ def launch_cli():
             args.url,
             output_dir=args.output,
             audio_format=args.format,
+            keep_m4a=args.keep_m4a,
             save_cover=not args.no_cover,
             progress_callback=progress_cb,
         )
@@ -1059,6 +1107,8 @@ def launch_cli():
         dur_s = int(res["duration"] % 60)
         print(f"⏱️ Total duration: {dur_m}:{dur_s:02d} ({res['duration']:.1f}s)")
         print(f"🎧 Audio file ({args.format.upper()}): {res['audio_path']}")
+        if res.get("m4a_path") and args.format != "m4a":
+            print(f"📱 Original M4A: {res['m4a_path']}")
         if res.get("cover_path"):
             print(f"🖼️ Cover: {res['cover_path']}")
         if res.get("metadata_path"):

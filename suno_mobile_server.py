@@ -186,6 +186,8 @@ async def api_download(req: DownloadRequest, background_tasks: BackgroundTasks):
             raise HTTPException(status_code=400, detail="URL required")
 
         fmt = (req.format or "mp3").lower().strip()
+        if fmt not in {"m4a", "mp3", "wav"}:
+            raise HTTPException(status_code=400, detail="Format must be m4a, mp3, or wav")
         res = scraper.download_song(url, output_dir=DOWNLOADS_DIR, audio_format=fmt)
         info = res["info"]
         audio_file = os.path.basename(res["audio_path"])
@@ -253,7 +255,7 @@ async def api_separate_stems(req: SeparateRequest, background_tasks: BackgroundT
             )
 
         fmt = (
-            (req.format or ("wav" if filename.lower().endswith(".wav") else "mp3"))
+            (req.format or ("wav" if filename.lower().endswith(".wav") else "m4a" if filename.lower().endswith(".m4a") else "mp3"))
             .lower()
             .strip()
         )
@@ -373,7 +375,7 @@ async def list_downloaded_files():
     if os.path.exists(DOWNLOADS_DIR):
         file_entries = []
         for f in os.listdir(DOWNLOADS_DIR):
-            if f.endswith((".mp3", ".wav")):
+            if f.endswith((".m4a", ".mp3", ".wav")):
                 full_path = os.path.join(DOWNLOADS_DIR, f)
                 mtime = os.path.getmtime(full_path)
                 file_entries.append((mtime, f))

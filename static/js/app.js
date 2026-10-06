@@ -14,6 +14,7 @@ function setWave(id, isPlaying) {
 function setFormat(fmt) {
     selectedFormat = fmt;
     document.getElementById('tabMp3').classList.toggle('active', fmt === 'mp3');
+    document.getElementById('tabM4a').classList.toggle('active', fmt === 'm4a');
     document.getElementById('tabWav').classList.toggle('active', fmt === 'wav');
 }
 
@@ -259,6 +260,7 @@ async function loadHistory() {
             const isVocal = f.name.includes('_vocals_only');
             const isSample = f.name.includes('_sample');
             const isWav = f.filename.endsWith('.wav');
+            const isM4a = f.filename.endsWith('.m4a');
 
             let itemClass = 'history-item';
             let badge = '';
@@ -276,6 +278,8 @@ async function loadHistory() {
 
             if (isWav) {
                 badge += '<span class="history-badge wav">WAV</span>';
+            } else if (isM4a) {
+                badge += '<span class="history-badge m4a">M4A</span>';
             } else {
                 badge += '<span class="history-badge mp3">MP3</span>';
             }

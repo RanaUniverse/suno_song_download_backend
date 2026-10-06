@@ -759,6 +759,11 @@ input[type="text"]:focus {
     color: #E4E4E7;
 }
 
+.history-badge.m4a {
+    background: rgba(0, 223, 216, 0.15);
+    color: #00DFD8;
+}
+
 .history-btn {
     background: rgba(255, 255, 255, 0.12);
     color: #fff;
