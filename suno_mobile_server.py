@@ -1,7 +1,10 @@
 """
-Servidor Web Móvil para Suno AI Downloader
-Permite usar la aplicación desde cualquier celular (Android / iOS) o navegador web en PC.
-Soporta preescucha / visualización previa, descarga en MP3 320 kbps, WAV Lossless y Separación de Pista y Voz.
+suno_downloader.py
+
+# Mobile Web Server for Suno AI Downloader
+# Allows using the application from any mobile phone (Android / iOS) or PC web browser.
+# Supports preview / playback, 320 kbps MP3 download, WAV Lossless, and Track/Vocal Separation.
+
 """
 
 import os

@@ -1,7 +1,10 @@
 """
-Suno AI Music Downloader & Decryptor
-Descarga y descifra canciones de Suno AI (Sistema Mango DRM / AES-128-CTR)
-Generando archivos MP3 estándar a 320 kbps de alta fidelidad, con portada y letra.
+suno_downloader.py
+
+# Suno AI Music Downloader & Decryptor
+# Download and decrypt Suno AI songs (Mango DRM / AES-128-CTR system)
+# Generating standard high-fidelity 320 kbps MP3 files with cover art and lyrics.
+
 """
 
 import os

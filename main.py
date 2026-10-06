@@ -1,5 +1,7 @@
 """
-Punto de entrada para despliegue en la nube (Render, Railway, Hugging Face, etc.)
+main.py
+
+# Entry point for cloud deployment (Render, Railway, Hugging Face, etc.)
 """
 
 import os
