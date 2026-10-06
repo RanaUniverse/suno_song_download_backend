@@ -18,10 +18,10 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-# Importar el motor de descarga y procesamiento de audio
+# Import the audio download and processing engine
 from suno_downloader import SunoScraper, sanitize_filename
 
-# Asegurar UTF-8 en consola de Windows
+# Ensure UTF-8 in Windows console
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -1389,7 +1389,7 @@ async def api_download(req: DownloadRequest, background_tasks: BackgroundTasks):
         dur_s = int(duration % 60)
         duration_formatted = f"{dur_m}:{dur_s:02d}"
 
-        # Cálculo sugerido para la muestra
+        # Suggested calculation for the sample
         suggested_sec = 60
         if duration <= 60:
             suggested_sec = 30
@@ -1404,7 +1404,7 @@ async def api_download(req: DownloadRequest, background_tasks: BackgroundTasks):
         elif info.get("image_url"):
             cover_url = info["image_url"]
 
-        # Programar auto-eliminación en 5 minutos (300s) para no ocupar disco en el servidor
+        # Schedule auto-deletion in 5 minutes (300s) to avoid taking up disk space on the server
         if res.get("audio_path"):
             background_tasks.add_task(delayed_remove_file, res["audio_path"], 300)
         if res.get("cover_path"):
@@ -1452,7 +1452,7 @@ async def api_separate_stems(req: SeparateRequest, background_tasks: BackgroundT
         inst_file = sep_res["instrumental_filename"]
         vocal_file = sep_res["vocals_filename"]
 
-        # Programar auto-eliminación en 5 minutos (300s)
+        # Schedule auto-deletion in 5 minutes (300s)
         if sep_res.get("instrumental_path"):
             background_tasks.add_task(delayed_remove_file, sep_res["instrumental_path"], 300)
         if sep_res.get("vocals_path"):
@@ -1506,7 +1506,7 @@ async def api_generate_sample(req: SampleRequest, background_tasks: BackgroundTa
         )
 
         sample_filename = sample_res["filename"]
-        # Programar auto-eliminación en 5 minutos (300s)
+        # Schedule auto-deletion in 5 minutes (300s)
         if sample_res.get("sample_path"):
             background_tasks.add_task(delayed_remove_file, sample_res["sample_path"], 300)
 
@@ -1541,8 +1541,8 @@ async def download_file_endpoint(filename: str, background_tasks: BackgroundTask
     elif filename.endswith(".txt"):
         media_type = "text/plain; charset=utf-8"
 
-    # Al ser descargado o reproducido, programar borrado en 2 minutos (120s)
-    # para que termine de transmitirse y luego se libere el espacio en el servidor
+    # Upon being downloaded or played, schedule deletion in 2 minutes (120s)
+    # so that transmission finishes and server space is then freed up
     background_tasks.add_task(delayed_remove_file, file_path, 120)
 
     return FileResponse(
