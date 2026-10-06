@@ -20,7 +20,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.backends import default_backend
 import imageio_ffmpeg
 
-# Configurar codificación segura para consola en Windows
+# Configure secure encoding for console in Windows
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -97,7 +97,7 @@ class SunoScraper:
             else:
                 raise ValueError(f"URL o ID no válido: {url}")
 
-        # Si es un enlace corto /s/CODE, intentar resolverlo mediante el API oficial de Suno
+        # If it is a short link /s/CODE, try to resolve it using the official Suno API
         share_match = re.search(r"/s/([a-zA-Z0-9_\-]+)", url)
         if share_match:
             share_code = share_match.group(1)
@@ -107,11 +107,11 @@ class SunoScraper:
 
         song_id = self.extract_song_id(url)
 
-        # Realizar petición HTTP siguiendo redirecciones
+        # Make an HTTP request following redirects
         response = self.session.get(url, timeout=15, allow_redirects=True)
         final_url = response.url
 
-        # Comprobar si redirigió a la página principal de Suno (enlace roto, privado o expirado)
+        # Check if it redirected to the Suno homepage (broken, private, or expired link)
         is_home_redirect = final_url.rstrip("/") in ("https://suno.com", "http://suno.com", "https://suno.ai", "http://suno.ai")
         if is_home_redirect and not song_id:
             if share_match or "/s/" in url:
@@ -131,7 +131,7 @@ class SunoScraper:
         if not song_id:
             song_id = self.extract_song_id(final_url)
 
-        # Si aún no se encontró el UUID y no es la página de inicio, buscar en etiquetas meta del HTML
+        # If the UUID has not been found yet and it is not the home page, search in the HTML meta tags
         if not song_id and not is_home_redirect:
             soup_pre = BeautifulSoup(response.text, "html.parser")
             og_url = soup_pre.find("meta", property="og:url")
@@ -158,29 +158,29 @@ class SunoScraper:
             "source_url": final_url,
         }
 
-        # Extraer Título
+        # Extract Title
         og_title = soup.find("meta", property="og:title") or soup.find("meta", {"name": "twitter:title"})
         if og_title and og_title.get("content"):
             title_clean = og_title["content"].replace(" | Suno", "").replace(" on Suno", "").strip()
             if title_clean:
                 info["title"] = title_clean
 
-        # Extraer Portada
+        # Extract Cover Image
         og_image = soup.find("meta", property="og:image") or soup.find("meta", {"name": "twitter:image"})
         if og_image and og_image.get("content"):
             info["image_url"] = og_image["content"]
 
-        # Extraer Descripción / Prompt
+        # Extract Description / Prompt
         og_desc = soup.find("meta", property="og:description") or soup.find("meta", {"name": "description"})
         if og_desc and og_desc.get("content"):
             info["prompt"] = og_desc["content"]
 
-        # Extraer Tags de estilo
+        # Extract Style Tags
         tags_match = re.search(r'\"tags\"\s*:\s*\"([^\"]+)\"', html)
         if tags_match:
             info["tags"] = tags_match.group(1)
 
-        # Buscar URL de audio de CloudFront en el HTML
+        # Search for CloudFront audio URL in the HTML
         cf_matches = re.findall(r'https?://[^\s"\'<>\\]+\.cloudfront\.net/[^\s"\'<>\\]+\.(?:m4a|mp3|wav)', html)
         if cf_matches:
             info["audio_url"] = cf_matches[0]
@@ -207,7 +207,7 @@ class SunoScraper:
         if progress_callback:
             progress_callback("licencia", 0, 0, 10.0)
 
-        # 1. Obtener claves de licencia Mango
+        # 1. Get Mango license keys
         rights_url = "https://studio-api.prod.suno.com/api/mango/rights"
         payload = {
             "content_params": {
@@ -224,7 +224,7 @@ class SunoScraper:
         wrapped_key_b64 = rights_data["key"]
         wrapped_iv_b64 = rights_data["iv"]
 
-        # 2. Desempaquetar clave y vector de inicialización (AES-GCM con SHA256 de GLT)
+        # 2. Unpack key and initialization vector (AES-GCM with GLT SHA256)
         user_key = hashlib.sha256(glt.encode("utf-8")).digest()
         aes_gcm = AESGCM(user_key)
         aad = song_id.encode("utf-8")
@@ -235,7 +235,7 @@ class SunoScraper:
         wrapped_iv = base64.b64decode(wrapped_iv_b64)
         content_iv = aes_gcm.decrypt(wrapped_iv[:12], wrapped_iv[12:], aad)
 
-        # 3. Descargar el flujo cifrado con progreso
+        # 3. Download the encrypted stream with progress
         if progress_callback:
             progress_callback("descargando", 0, 0, 25.0)
 
@@ -259,7 +259,7 @@ class SunoScraper:
         if len(encrypted_data) < 50000:
             raise Exception("El archivo descargado está incompleto o vacío.")
 
-        # 4. Descifrar con AES-128-CTR
+        # 4. Decrypt with AES-128-CTR
         if progress_callback:
             progress_callback("descifrando", downloaded, total_size, 80.0)
 
@@ -267,12 +267,12 @@ class SunoScraper:
         decryptor = cipher.decryptor()
         decrypted_audio = decryptor.update(encrypted_data) + decryptor.finalize()
 
-        # Guardar archivo temporal descifrado
+        # Save decrypted temporary file
         temp_decrypted = output_audio_path + ".tmp.m4a"
         with open(temp_decrypted, "wb") as f:
             f.write(decrypted_audio)
 
-        # 5. Convertir a MP3 estándar o WAV Lossless con FFmpeg
+        # 5. Convert to standard MP3 or Lossless WAV with FFmpeg
         if progress_callback:
             progress_callback("convirtiendo", downloaded, total_size, 90.0)
 
@@ -299,7 +299,7 @@ class SunoScraper:
 
         conv_res = subprocess.run(cmd, capture_output=True, text=True)
 
-        # Limpiar archivo temporal
+        # Clean up temporary file
         if os.path.exists(temp_decrypted):
             try:
                 os.remove(temp_decrypted)
@@ -307,7 +307,7 @@ class SunoScraper:
                 pass
 
         if conv_res.returncode != 0:
-            # Fallback: renombrar el m4a descifrado si falla ffmpeg
+            # Fallback: rename the decrypted m4a if ffmpeg fails
             fallback_m4a = output_audio_path.rsplit(".", 1)[0] + ".m4a"
             with open(fallback_m4a, "wb") as f:
                 f.write(decrypted_audio)
@@ -353,7 +353,7 @@ class SunoScraper:
 
         total_duration = self.get_audio_duration(input_mp3)
 
-        # Cálculo inteligente de duración de muestra
+        # Intelligent sample duration calculation
         if duration_sec is None or duration_sec <= 0:
             if total_duration <= 0:
                 duration_sec = 60.0
@@ -362,10 +362,10 @@ class SunoScraper:
             elif total_duration <= 180:
                 duration_sec = 60.0
             else:
-                # Ejemplo: canciones de 4-5 minutos -> muestra de 2 minutos (120s)
+                # Example: 4-5 minute songs -> 2-minute sample (120s)
                 duration_sec = min(120.0, total_duration * 0.45)
 
-        # Asegurar límites válidos
+        # Ensure valid limits
         if total_duration > 0:
             start_sec = max(0.0, min(start_sec, max(0.0, total_duration - 5.0)))
             duration_sec = min(duration_sec, total_duration - start_sec)
@@ -379,7 +379,7 @@ class SunoScraper:
             dur_label = f"{int(duration_sec)}s" if duration_sec < 60 else f"{int(duration_sec // 60)}m{int(duration_sec % 60):02d}s" if duration_sec % 60 else f"{int(duration_sec // 60)}m"
             output_sample_mp3 = f"{base}_muestra_{dur_label}{ext}"
 
-        # Aplicar suavizado (fade-in y fade-out)
+        # Apply smoothing (fade-in and fade-out)
         filters = []
         if apply_fade and duration_sec >= 4.0:
             fade_in_len = min(1.5, duration_sec * 0.08)
@@ -444,7 +444,7 @@ class SunoScraper:
         fmt = audio_format.lower().strip()
         ext = "wav" if fmt == "wav" else "mp3"
 
-        # 1. Verificar si la canción completa ya fue descargada con anterioridad en la carpeta
+        # 1. Check if the full song was already downloaded previously in the folder
         candidate_audio = os.path.join(output_dir, f"{base_name}.{ext}")
         if not os.path.exists(candidate_audio):
             alt_ext = "mp3" if ext == "wav" else "wav"
@@ -475,7 +475,7 @@ class SunoScraper:
                 res["cover_path"] = cover_path
             return res
 
-        # 2. Si NO existe completa, descargamos y desciframos el flujo a un archivo temporal que se eliminará al terminar
+        # 2. If the complete one does not exist, download and decrypt the stream to a temporary file that will be deleted upon completion
         stream_url = info.get("audio_url") or f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
         temp_decrypted = os.path.join(output_dir, f".tmp_sample_{song_id[:8]}_{os.getpid()}.m4a")
 
@@ -649,7 +649,7 @@ class SunoScraper:
         os.makedirs(out_dir, exist_ok=True)
 
         base_name = os.path.splitext(os.path.basename(input_audio))[0]
-        # Limpiar sufijos previos si los tuviera
+        # Clean up previous suffixes if any
         for suffix in ["_pista_instrumental", "_solo_voz", "_muestra"]:
             if suffix in base_name:
                 base_name = base_name.split(suffix)[0]
@@ -674,7 +674,7 @@ class SunoScraper:
         if progress_callback:
             progress_callback("separando instrumental", 0, 0, 20.0)
 
-        # Filtro 1: Pista Instrumental (Cancela centro y preserva graves < 160Hz)
+        # Filter 1: Instrumental Track (Cancels center and preserves bass < 160Hz)
         inst_filter = (
             "[0:a]asplit=2[orig][orig_bass];"
             "[orig]pan=stereo|c0=c0-c1|c1=c1-c0,volume=1.5[sides];"
@@ -695,7 +695,7 @@ class SunoScraper:
         if progress_callback:
             progress_callback("separando voz", 0, 0, 60.0)
 
-        # Filtro 2: Solo Voz (Aislamiento de formantes vocales y frecuencias centrales)
+        # Filter 2: Vocals Only (Isolation of vocal formants and central frequencies)
         vocal_filter = (
             "[0:a]asplit=2[full][highs];"
             "[full]pan=stereo|c0=0.5*c0+0.5*c1|c1=0.5*c0+0.5*c1,highpass=f=180,lowpass=f=7500[vocal_mid];"
@@ -769,7 +769,7 @@ class SunoScraper:
             "duration": 0.0
         }
 
-        # Descifrar y Guardar Audio (MP3 o WAV)
+        # Decrypt and Save Audio (MP3 or WAV)
         audio_out = os.path.join(output_dir, f"{base_name}.{ext}")
         stream_url = info.get("audio_url") or f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
 
@@ -786,17 +786,18 @@ class SunoScraper:
                 progress_callback=progress_callback
             )
         result["audio_path"] = final_audio_path
-        result["mp3_path"] = final_audio_path  # Compatibilidad hacia atrás
+        result["mp3_path"] = final_audio_path  
+        # Backward compatiability
         result["duration"] = self.get_audio_duration(final_audio_path)
 
-        # Guardar Portada
+        # Save Cover Art
         if save_cover and info.get("image_url"):
             cover_ext = ".jpeg" if ".jpeg" in info["image_url"] else ".png"
             cover_path = os.path.join(output_dir, f"{base_name}{cover_ext}")
             if self.download_cover(info["image_url"], cover_path):
                 result["cover_path"] = cover_path
 
-        # Guardar Letra y Metadatos
+        # Save Lyrics and Metadata
         if save_metadata:
             meta_path = os.path.join(output_dir, f"{base_name}_info.txt")
             with open(meta_path, "w", encoding="utf-8") as f:
@@ -892,7 +893,7 @@ def launch_cli():
         if res.get('metadata_path'):
             print(f"📄 Letra y Metadatos: {res['metadata_path']}")
 
-        # Si se solicitó muestra por comando
+        # If a sample was requested via command
         if args.sample:
             dur_req = None
             if args.sample != "auto":
@@ -903,7 +904,7 @@ def launch_cli():
             sample_res = scraper.create_audio_sample(res["audio_path"], duration_sec=dur_req)
             print(f"✂️ Muestra generada ({sample_res['actual_sample_duration']:.1f}s): {sample_res['sample_path']}")
 
-        # Si se solicitó separar pista y voz
+        # If track and vocal separation was requested
         if args.separate:
             print("\n🎤 Separando pista instrumental y solo voz...")
             sep_res = scraper.separate_vocals_and_instrumental(res["audio_path"], output_format=args.format)
@@ -1103,7 +1104,7 @@ def launch_gui():
     txt_lyrics.insert("1.0", "Letra / Prompt aparecerá aquí...")
     txt_lyrics.config(state="disabled")
 
-    # Sample Controls Frame (Muestras de Audio)
+    # Sample Controls Frame (Audio Samples)
     sample_box = tk.LabelFrame(
         main_frame,
         text=" ✂️ MUESTRA DE AUDIO (PREVIEW - DIRECTO SIN DESCARGAR COMPLETA) ",
@@ -1169,7 +1170,8 @@ def launch_gui():
         elif "Mitad" in choice:
             dur = "half" if not has_full_download else (max(15.0, tot * 0.5) if tot > 0 else 60.0)
         else:
-            dur = None  # auto
+            dur = None  
+            # auto
 
         status_var.set("Preparando muestra de audio...")
         progress_bar["value"] = 15
@@ -1203,7 +1205,7 @@ def launch_gui():
                         progress_callback=on_sample_progress
                     )
 
-                    # Actualizar tarjeta de información de la canción
+                    # Update song info card
                     info = s_res.get("info", {})
                     if info:
                         lbl_song_title.config(text=f"🎵 {info.get('title', 'Suno Track')}")
@@ -1287,7 +1289,7 @@ def launch_gui():
     )
     btn_sample_play.pack(side="left")
 
-    # 🎤 Stem Separation Frame (Separador de Pista y Voz)
+    # 🎤 Stem Separation Frame (Track and Vocal Separator)
     stem_box = tk.LabelFrame(
         main_frame,
         text=" 🎤 SEPARADOR DE PISTA Y VOZ (STEMS) ",
