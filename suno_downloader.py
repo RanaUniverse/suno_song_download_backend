@@ -22,6 +22,7 @@ from typing import (
     Dict,
     Any,
     Callable,
+    TextIO,
 )
 import requests
 from bs4 import BeautifulSoup
@@ -36,33 +37,33 @@ from cryptography.hazmat.backends import default_backend
 
 import imageio_ffmpeg  # type: ignore This was pystub issu
 
-# Configure secure encoding for console in Windows
-if sys.stdout and hasattr(sys.stdout, "reconfigure"):
-    try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
-if sys.stderr and hasattr(sys.stderr, "reconfigure"):
-    try:
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
 
-DEFAULT_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
-    "Referer": "https://suno.com/",
-    "Origin": "https://suno.com",
-}
+from app.config import settings
 
-UUID_REGEX = re.compile(
-    r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})", re.IGNORECASE
-)
+from app.constants import UUID_REGEX
+
+DEFAULT_HEADERS = settings.suno.default_headers
+
+
+def configure_output(stream: TextIO) -> None:
+    if hasattr(stream, "reconfigure"):
+        try:
+            stream.reconfigure(  # type: ignore ; attr-defined
+                encoding="utf-8",
+                errors="replace",
+            )
+        except Exception:
+            pass
+
+
+configure_output(sys.stdout)
+configure_output(sys.stderr)
 
 
 def sanitize_filename(name: str) -> str:
-    """Cleans unauthorized characters in file names."""
+    """
+    Cleans unauthorized characters in file names.
+    """
     clean = re.sub(r'[\\/*?:"<>|]', "", name)
     clean = clean.strip().replace("\n", " ").replace("\r", "")
     return clean[:90] if clean else "suno_song"
@@ -74,18 +75,19 @@ class SunoScraper:
         self.session.headers.update(DEFAULT_HEADERS)
         self.ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
 
-    def resolve_share_code(self, share_code: str) -> Optional[str]:
-        """Attempts to resolve a short Suno shared link (/s/CODE) to the actual song ID."""
+    def resolve_share_code(
+        self,
+        share_code: str,
+    ) -> Optional[str]:
+        """
+        Attempts to resolve a short Suno shared link (/s/CODE) to the actual song ID.
+        """
         endpoints = [
             f"https://studio-api.prod.suno.com/api/share/code/{share_code}",
             f"https://studio-api-prod.suno.com/api/share/code/{share_code}",
         ]
-        headers = {
-            "User-Agent": DEFAULT_HEADERS["User-Agent"],
-            "Accept": "application/json, text/plain, */*",
-            "Referer": "https://suno.com/",
-            "Origin": "https://suno.com",
-        }
+        headers = settings.suno.share_api_headers
+
         for ep in endpoints:
             try:
                 res = self.session.get(ep, headers=headers, timeout=8)
@@ -138,30 +140,38 @@ class SunoScraper:
             "https://suno.ai",
             "http://suno.ai",
         )
+
         if is_home_redirect and not song_id:
             if share_match or "/s/" in url:
                 raise ValueError(
                     f"Could not find the song from the short link:\n'{url}'\n\n"
-                    "The link does not exist, is private, or has expired on Suno (Suno's servers redirect it to the home page).\n\n"
-                    "👉 Solution: Open the song in your browser (or in the Suno app), click on the title, and copy the direct link containing the song ID:\n"
-                    "https://suno.com/song/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    "The link does not exist, is private, or has expired on Suno "
+                    "(Suno's servers redirect it to the home page).\n\n"
+                    "👉 Solution: Open the song in your browser (or in the Suno app), "
+                    "click on the title, and copy the direct link containing the song ID:\n"
+                    "https://suno.com/song/12345678-abcd-4ef0-9012-123456789abc"
                 )
             else:
                 raise ValueError(
-                    f"The link redirects to Suno's home page without finding the song:\n'{url}'\n\n"
+                    f"The link redirects to Suno's home page without finding "
+                    f"the song:\n'{url}'\n\n"
                     "Please use the full song link:\n"
-                    "https://suno.com/song/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    "https://suno.com/song/12345678-abcd-4ef0-9012-123456789abc"
                 )
 
         if not song_id:
             song_id = self.extract_song_id(final_url)
 
-        # If the UUID has not been found yet and it is not the home page, search in the HTML meta tags
+        # If the UUID has not been found yet and it is not
+        # the home page, search in the HTML meta tags
         if not song_id and not is_home_redirect:
             soup_pre = BeautifulSoup(response.text, "html.parser")
             og_url = soup_pre.find("meta", property="og:url")
-            if og_url and og_url.get("content"):
-                song_id = self.extract_song_id(og_url["content"])
+
+            if og_url:
+                content = og_url.get("content")
+                if isinstance(content, str) and content:
+                    song_id = self.extract_song_id(content)
 
         if not song_id:
             raise ValueError(
@@ -183,19 +193,19 @@ class SunoScraper:
             "source_url": final_url,
         }
 
-        # Extract Title
+        # Extract Title first look at title property then twitter part
         og_title = soup.find("meta", property="og:title") or soup.find(
             "meta", {"name": "twitter:title"}
         )
-        if og_title and og_title.get("content"):
-            title_clean = (
-                og_title["content"]
-                .replace(" | Suno", "")
-                .replace(" on Suno", "")
-                .strip()
-            )
+
+        content = og_title.get("content") if og_title else None
+
+        if isinstance(content, str):
+            title_clean = content.replace(" | Suno", "").replace(" on Suno", "").strip()
+
             if title_clean:
                 info["title"] = title_clean
+
 
         # Extract Cover Image
         og_image = soup.find("meta", property="og:image") or soup.find(
@@ -227,6 +237,7 @@ class SunoScraper:
             info["audio_url"] = (
                 f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
             )
+            # TODO i will later thinks to change this audio_url if suno change this
 
         if not info["image_url"] and song_id:
             info["image_url"] = f"https://cdn2.suno.ai/image_large_{song_id}.jpeg"
@@ -785,7 +796,11 @@ class SunoScraper:
         codec_args = (
             ["-c:a", "pcm_s16le"]
             if fmt == "wav"
-            else (["-c:a", "aac", "-b:a", "192k"] if fmt == "m4a" else ["-c:a", "libmp3lame", "-b:a", "320k"])
+            else (
+                ["-c:a", "aac", "-b:a", "192k"]
+                if fmt == "m4a"
+                else ["-c:a", "libmp3lame", "-b:a", "320k"]
+            )
         )
 
         instrumental_path = os.path.join(

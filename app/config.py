@@ -226,6 +226,43 @@ class ExternalSettings(BaseModel):
     my_email_id: str = "RanaUniverse321+tg_bot_help@gmail.com"
 
 
+class SunoSettings(BaseModel):
+    base_url: str = "https://suno.com"
+    user_agent: str = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+    )
+    accept: str = (
+        "text/html,application/xhtml+xml,application/xml;q=0.9,"
+        "image/avif,image/webp,*/*;q=0.8"
+    )
+    accept_language: str = "es-ES,es;q=0.9,en;q=0.8"
+
+    @property
+    def default_headers(self) -> dict[str, str]:
+        return {
+            "User-Agent": self.user_agent,
+            "Accept": self.accept,
+            "Accept-Language": self.accept_language,
+            "Referer": f"{self.base_url}/",
+            "Origin": self.base_url,
+        }
+
+    @property
+    def share_api_headers(self) -> dict[str, str]:
+        """
+        i will use this headers for resolve the url or id
+        mainly form this website
+        f"https://studio-api.prod.suno.com/api/share/code/{share_code}",
+        """
+        return {
+            "User-Agent": self.user_agent,
+            "Accept": "application/json, text/plain, */*",
+            "Referer": f"{self.base_url}/",
+            "Origin": self.base_url,
+        }
+
+
 class Settings(BaseSettings):
     """
     db: DatabaseSettings = DatabaseSettings()
@@ -245,6 +282,7 @@ class Settings(BaseSettings):
     mail: MailSettings = Field(repr=False)
     db: DatabaseSettings = Field(default_factory=DatabaseSettings)
     redis: RedisSettings
+    suno: SunoSettings = Field(default_factory=SunoSettings)
 
     model_config = SettingsConfigDict(
         env_file=".env",
