@@ -60,9 +60,7 @@ from app.shared.song_info import SunoSongFrontendData
 
 from app.config import settings
 
-from app.shared.song_download import download_suno_song
-
-
+from app.features.suno.service import download_suno_song
 
 # from app.utils import generate_direct_song_download_url
 # from app.features.browser.song_download import download_song_in_playwright
@@ -281,14 +279,13 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
         # song_path_after_download = await download_song_in_playwright(
         #     link=downloadable_song_url,
         # )
-        
+
         song_path_after_download = await asyncio.to_thread(
             download_suno_song,
             final_song_url,
-        )        
-        
+        )
 
-        print(f"Song of link {final_song_url} is done in:->",song_path_after_download)
+        print(f"Song of link {final_song_url} is done in:->", song_path_after_download)
 
         uploading_sticker = await message.reply_sticker(
             StickerFileId.UPLOADING_CLOUD,
@@ -299,7 +296,7 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
         if song_path_after_download is not None:
             audio_path = Path(song_path_after_download)
             thumbnail_path = audio_path.with_suffix(".jpeg")
-            thumbnail=None
+            thumbnail = None
             if thumbnail_path.exists():
                 thumbnail = thumbnail_path.open("rb")
 
