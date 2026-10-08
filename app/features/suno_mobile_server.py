@@ -212,8 +212,8 @@ async def api_download(req: DownloadRequest, background_tasks: BackgroundTasks):
         if res.get("cover_path") and os.path.exists(res["cover_path"]):
             cover_file = os.path.basename(res["cover_path"])
             cover_url = f"/downloads/{urllib.parse.quote(cover_file)}"
-        elif info.get("image_url"):
-            cover_url = info["image_url"]
+        elif info.image_url:
+            cover_url = info.image_url
 
         # Schedule auto-deletion in 5 minutes (300s) to avoid taking up disk space on the server
         if res.get("audio_path"):
@@ -225,8 +225,8 @@ async def api_download(req: DownloadRequest, background_tasks: BackgroundTasks):
 
         return {
             "success": True,
-            "title": info["title"],
-            "tags": info.get("tags", ""),
+            "title": info.title,
+            "tags": info.tags,
             "filename": audio_file,
             "format": res.get("format", fmt),
             "download_url": f"/downloads/{urllib.parse.quote(audio_file)}",

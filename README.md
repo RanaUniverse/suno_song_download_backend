@@ -92,3 +92,7 @@ uv init . --python 3.12.12 --no-package
 ```
 
 
+HOw to run in cli now:?
+```
+uv run python -m app.features.suno_downloader https://suno.com/song/e7faed2c-2177-438d-a537-76ae39b0eb31 -f wav
+```

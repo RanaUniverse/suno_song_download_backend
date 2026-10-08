@@ -41,6 +41,7 @@ import imageio_ffmpeg  # type: ignore This was pystub issu
 from app.config import settings
 
 from app.constants import UUID_REGEX
+from app.features.suno.models import SongInfo
 
 DEFAULT_HEADERS = settings.suno.default_headers
 
@@ -109,8 +110,12 @@ class SunoScraper:
             return match.group(1)
         return None
 
-    def scrape_song_info(self, url: str) -> Dict[str, Any]:
-        """Extracts metadata, image, and URLs from the Suno page."""
+    def scrape_song_info(self, url: str) -> SongInfo:
+        """
+        Extracts metadata, image, and URLs from the Suno page.
+        This Function will return the updated SongInfo BaseModel class
+        """
+
         url = url.strip()
         if not url.startswith("http"):
             song_id = self.extract_song_id(url)
@@ -183,15 +188,10 @@ class SunoScraper:
         html = response.text
         soup = BeautifulSoup(html, "html.parser")
 
-        info: Dict[str, Any] = {
-            "id": song_id,
-            "title": "Suno AI Song",
-            "audio_url": None,
-            "image_url": None,
-            "prompt": "",
-            "tags": "",
-            "source_url": final_url,
-        }
+        info = SongInfo(
+            id=song_id,
+            source_url=final_url,
+        )
 
         # Extract Title first look at title property then twitter part
         og_title = soup.find("meta", property="og:title") or soup.find(
@@ -204,27 +204,29 @@ class SunoScraper:
             title_clean = content.replace(" | Suno", "").replace(" on Suno", "").strip()
 
             if title_clean:
-                info["title"] = title_clean
-
+                info.title = title_clean
 
         # Extract Cover Image
         og_image = soup.find("meta", property="og:image") or soup.find(
             "meta", {"name": "twitter:image"}
         )
-        if og_image and og_image.get("content"):
-            info["image_url"] = og_image["content"]
+
+        image_content = og_image.get("content") if og_image else None
+        if isinstance(image_content, str):
+            info.image_url = image_content
 
         # Extract Description / Prompt
         og_desc = soup.find("meta", property="og:description") or soup.find(
             "meta", {"name": "description"}
         )
-        if og_desc and og_desc.get("content"):
-            info["prompt"] = og_desc["content"]
+        description_content = og_desc.get("content") if og_desc else None
+        if isinstance(description_content, str):
+            info.prompt = description_content
 
         # Extract Style Tags
         tags_match = re.search(r"\"tags\"\s*:\s*\"([^\"]+)\"", html)
         if tags_match:
-            info["tags"] = tags_match.group(1)
+            info.tags = tags_match.group(1)
 
         # Search for CloudFront audio URL in the HTML
         cf_matches = re.findall(
@@ -232,15 +234,15 @@ class SunoScraper:
             html,
         )
         if cf_matches:
-            info["audio_url"] = cf_matches[0]
+            info.audio_url = cf_matches[0]
         elif song_id:
-            info["audio_url"] = (
+            info.audio_url = (
                 f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
             )
             # TODO i will later thinks to change this audio_url if suno change this
 
-        if not info["image_url"] and song_id:
-            info["image_url"] = f"https://cdn2.suno.ai/image_large_{song_id}.jpeg"
+        if not info.image_url and song_id:
+            info.image_url = f"https://cdn2.suno.ai/image_large_{song_id}.jpeg"
 
         return info
 
@@ -526,8 +528,8 @@ class SunoScraper:
         info = self.scrape_song_info(url)
         os.makedirs(output_dir, exist_ok=True)
 
-        clean_title = sanitize_filename(info["title"])
-        song_id = info["id"] or "track"
+        clean_title = sanitize_filename(info.title)
+        song_id = info.id or "track"
         base_name = f"{clean_title} ({song_id[:8]})"
 
         fmt = audio_format.lower().strip()
@@ -561,17 +563,18 @@ class SunoScraper:
                 apply_fade=apply_fade,
             )
             res["info"] = info
-            if save_cover and info.get("image_url"):
-                cover_ext = ".jpeg" if ".jpeg" in info["image_url"] else ".png"
+            if save_cover and info.image_url:
+                cover_ext = ".jpeg" if ".jpeg" in info.image_url else ".png"
                 cover_path = os.path.join(output_dir, f"{base_name}{cover_ext}")
                 if not os.path.exists(cover_path):
-                    self.download_cover(info["image_url"], cover_path)
+                    self.download_cover(info.image_url, cover_path)
                 res["cover_path"] = cover_path
             return res
 
-        # 2. If the complete one does not exist, download and decrypt the stream to a temporary file that will be deleted upon completion
+        # 2. If the complete one does not exist, download and decrypt
+        # the stream to a temporary file that will be deleted upon completion
         stream_url = (
-            info.get("audio_url")
+            info.audio_url
             or f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
         )
         temp_decrypted = os.path.join(
@@ -585,9 +588,17 @@ class SunoScraper:
             rights_url = "https://audiopipe.suno.ai/rights"
             payload = {
                 "license_type": "user",
-                "content": {"content_id": song_id, "content_type": "clip"},
+                "content": {
+                    "content_id": song_id,
+                    "content_type": "clip",
+                },
             }
-            rights_res = self.session.post(rights_url, json=payload, timeout=15)
+            rights_res = self.session.post(
+                rights_url,
+                json=payload,
+                timeout=15,
+            )
+
             if rights_res.status_code != 200:
                 raise Exception(
                     f"Failed to obtain Suno audio license (HTTP {rights_res.status_code})"
@@ -730,10 +741,10 @@ class SunoScraper:
             sample_actual_duration = self.get_audio_duration(output_sample_file)
 
             cover_path = None
-            if save_cover and info.get("image_url"):
-                cover_ext = ".jpeg" if ".jpeg" in info["image_url"] else ".png"
+            if save_cover and info.image_url:
+                cover_ext = ".jpeg" if ".jpeg" in info.image_url else ".png"
                 c_path = os.path.join(output_dir, f"{base_name}{cover_ext}")
-                if self.download_cover(info["image_url"], c_path):
+                if self.download_cover(info.image_url, c_path):
                     cover_path = c_path
 
             if progress_callback:
@@ -922,8 +933,8 @@ class SunoScraper:
         info = self.scrape_song_info(url)
         os.makedirs(output_dir, exist_ok=True)
 
-        clean_title = sanitize_filename(info["title"])
-        song_id = info["id"] or "track"
+        clean_title = sanitize_filename(info.title)
+        song_id = info.id or "track"
         base_name = f"{clean_title} ({song_id[:8]})"
 
         fmt = audio_format.lower().strip()
@@ -946,7 +957,7 @@ class SunoScraper:
         audio_out = os.path.join(output_dir, f"{base_name}.{ext}")
         m4a_out = os.path.join(output_dir, f"{base_name}.m4a")
         stream_url = (
-            info.get("audio_url")
+            info.audio_url
             or f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
         )
 
@@ -976,27 +987,30 @@ class SunoScraper:
         result["duration"] = self.get_audio_duration(final_audio_path)
 
         # Save Cover Art
-        if save_cover and info.get("image_url"):
-            cover_ext = ".jpeg" if ".jpeg" in info["image_url"] else ".png"
+        if save_cover and info.image_url:
+            cover_ext = ".jpeg" if ".jpeg" in info.image_url else ".png"
             cover_path = os.path.join(output_dir, f"{base_name}{cover_ext}")
-            if self.download_cover(info["image_url"], cover_path):
+            if self.download_cover(
+                info.image_url,
+                cover_path,
+            ):
                 result["cover_path"] = cover_path
 
         # Save Lyrics and Metadata
         if save_metadata:
             meta_path = os.path.join(output_dir, f"{base_name}_info.txt")
             with open(meta_path, "w", encoding="utf-8") as f:
-                f.write(f"Title: {info['title']}\n")
-                f.write(f"Suno ID: {info['id']}\n")
+                f.write(f"Title: {info.title}\n")
+                f.write(f"Suno ID: {info.id}\n")
                 f.write(f"Format: {ext.upper()}\n")
-                f.write(f"Original Link: {info['source_url']}\n")
-                f.write(f"Tags / Style: {info['tags']}\n")
+                f.write(f"Original Link: {info.source_url}\n")
+                f.write(f"Tags / Style: {info.tags}\n")
                 dur_m = int(result["duration"] // 60)
                 dur_s = int(result["duration"] % 60)
                 f.write(f"Duration: {dur_m}:{dur_s:02d} ({result['duration']:.1f}s)\n")
                 f.write("-" * 50 + "\n")
                 f.write("LYRICS / PROMPT:\n")
-                f.write(f"{info['prompt'] or 'Not available'}\n")
+                f.write(f"{info.prompt or 'Not available'}\n")
             result["metadata_path"] = meta_path
 
         return result
@@ -1115,9 +1129,11 @@ def launch_cli():
             progress_callback=progress_cb,
         )
         print(
-            f"\n\n✅ Download and decryption completed in {args.format.upper()} format!"
+            f"\n\n✅ Download and decryption completed in "
+            f"{args.format.upper()} format!"
         )
-        print(f"🎵 Title: {res['info']['title']}")
+        print(f"🎵 Title: {res['info'].title}")
+
         dur_m = int(res["duration"] // 60)
         dur_s = int(res["duration"] % 60)
         print(f"⏱️ Total duration: {dur_m}:{dur_s:02d} ({res['duration']:.1f}s)")
@@ -1529,25 +1545,21 @@ def launch_gui():
                     )
 
                     # Update song info card
-                    info = s_res.get("info", {})
+                    info = s_res.get("info")
                     if info:
-                        lbl_song_title.config(
-                            text=f"🎵 {info.get('title', 'Suno Track')}"
-                        )
+                        lbl_song_title.config(text=f"🎵 {info.title}")
                         tot_dur = s_res.get("total_duration", 0.0)
                         dur_m = int(tot_dur // 60)
                         dur_s = int(tot_dur % 60)
                         fmt_label = var_format.get().upper()
                         lbl_song_meta.config(
-                            text=f"🏷️ {info.get('tags') or 'No style'}  |  ⏱️ Total: {dur_m}:{dur_s:02d}  |  ✂️ Sample: {s_res['actual_sample_duration']:.1f}s  |  💿 {fmt_label}"
+                            text=f"🏷️ {info.tags or 'No style'}  |  ⏱️ Total: {dur_m}:{dur_s:02d}  |  ✂️ Sample: {s_res['actual_sample_duration']:.1f}s  |  💿 {fmt_label}"
                         )
                         current_duration[0] = tot_dur
 
                         txt_lyrics.config(state="normal")
                         txt_lyrics.delete("1.0", "end")
-                        txt_lyrics.insert(
-                            "1.0", info.get("prompt") or "No lyrics available."
-                        )
+                        txt_lyrics.insert("1.0", info.prompt or "No lyrics available.")
                         txt_lyrics.config(state="disabled")
 
                         if s_res.get("cover_path") and os.path.exists(
@@ -1800,16 +1812,16 @@ def launch_gui():
                 last_audio_file[0] = res["audio_path"]
                 current_duration[0] = res.get("duration", 0.0)
 
-                lbl_song_title.config(text=f"🎵 {info.get('title', 'Suno Track')}")
+                lbl_song_title.config(text=f"🎵 {info.title}")
                 dur_m = int(res["duration"] // 60)
                 dur_s = int(res["duration"] % 60)
                 lbl_song_meta.config(
-                    text=f"🏷️ {info.get('tags') or 'No style'}  |  ⏱️ {dur_m}:{dur_s:02d}  |  💿 {chosen_fmt.upper()}"
+                    text=f"🏷️ {info.tags or 'No style'}  |  ⏱️ {dur_m}:{dur_s:02d}  |  💿 {chosen_fmt.upper()}"
                 )
 
                 txt_lyrics.config(state="normal")
                 txt_lyrics.delete("1.0", "end")
-                lyrics_text = info.get("prompt") or "No lyrics available."
+                lyrics_text = info.prompt or "No lyrics available."
                 txt_lyrics.insert("1.0", lyrics_text)
                 txt_lyrics.config(state="disabled")
 
@@ -1832,7 +1844,7 @@ def launch_gui():
                 btn_stem_separate.config(state="normal")
                 messagebox.showinfo(
                     "Download Successful!",
-                    f"{chosen_fmt.upper()} song ready:\n\n{info.get('title')}\nDuration: {dur_m}:{dur_s:02d}\n\nLocation:\n{res['audio_path']}",
+                    f"{chosen_fmt.upper()} song ready:\n\n{info.title}\nDuration: {dur_m}:{dur_s:02d}\n\nLocation:\n{res['audio_path']}",
                 )
 
             except Exception as e:
