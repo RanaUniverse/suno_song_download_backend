@@ -22,7 +22,8 @@ def download_suno_song(
             output_dir=output_dir,
             audio_format="m4a",  # or "mp3" / "wav"
         )
-        return result["audio_path"]
+        return result.audio_path
+
     except Exception:
         return None
 
