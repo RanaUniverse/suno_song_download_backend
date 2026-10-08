@@ -90,22 +90,28 @@
 
                             <!-- Format selector: IDs intentionally preserved for existing JS -->
                             <div class="format-selector" role="group" aria-label="Audio format">
-                                <button class="format-tab active" id="tabMp3" onclick="setFormat('mp3')">
+
+                                <button class="format-tab active" id="tabM4a" onclick="setFormat('m4a')">
                                     <i class="bi bi-file-earmark-music"></i>
-                                    <span>MP3</span>
-                                    <small>320 kbps</small>
-                                </button>
-                                <button class="format-tab" id="tabM4a" onclick="setFormat('m4a')">
-                                    <i class="bi bi-phone"></i>
                                     <span>M4A</span>
                                     <small>Original stream</small>
                                 </button>
+
+                                <button class="format-tab" id="tabMp3" onclick="setFormat('mp3')">
+                                    <i class="bi bi-file-earmark-play"></i>
+                                    <span>MP3</span>
+                                    <small>320 kbps</small>
+                                </button>
+
                                 <button class="format-tab" id="tabWav" onclick="setFormat('wav')">
-                                    <i class="bi bi-disc"></i>
+                                    <i class="bi bi-soundwave"></i>
                                     <span>WAV</span>
                                     <small>Lossless PCM</small>
                                 </button>
+
                             </div>
+
+
 
                             <div class="input-label">
                                 <span>SONG URL</span>

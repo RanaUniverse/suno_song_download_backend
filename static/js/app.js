@@ -1,4 +1,4 @@
-let selectedFormat = "mp3";
+let selectedFormat = "m4a";
 let currentFilename = "";
 let currentTotalDuration = 0;
 let selectedPreset = "auto";
