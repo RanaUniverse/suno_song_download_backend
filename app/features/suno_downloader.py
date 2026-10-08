@@ -47,6 +47,7 @@ from app.features.suno.models import (
     SampleDownloadResult,
     SongInfo,
 )
+from app.shared.logger_related import RanaLogger
 
 DEFAULT_HEADERS = settings.suno.default_headers
 
@@ -84,7 +85,7 @@ class SunoScraper:
     def resolve_share_code(
         self,
         share_code: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Attempts to resolve a short Suno shared link (/s/CODE) to the actual song ID.
         """
@@ -92,6 +93,7 @@ class SunoScraper:
             f"https://studio-api.prod.suno.com/api/share/code/{share_code}",
             f"https://studio-api-prod.suno.com/api/share/code/{share_code}",
         ]
+
         headers = settings.suno.share_api_headers
 
         for ep in endpoints:
@@ -102,26 +104,42 @@ class SunoScraper:
                     cid = (
                         data.get("content_id") or data.get("clip_id") or data.get("id")
                     )
+                    # after i get the content_id i will try to check if this looks
+                    # like the uuid of suno if yes then say this is id
                     if cid and UUID_REGEX.search(str(cid)):
                         return str(cid)
-            except Exception:
+
+            except Exception as e:
+                RanaLogger.warning(f"{e}")
                 pass
+
         return None
 
-    def extract_song_id(self, url_or_id: str) -> Optional[str]:
-        """Extracts the Suno song UUID."""
+    def extract_song_id(
+        self,
+        url_or_id: str,
+    ) -> str | None:
+        """
+        Extracts the Suno song UUID.
+        """
         match = UUID_REGEX.search(url_or_id)
         if match:
             return match.group(1)
         return None
 
-    def scrape_song_info(self, url: str) -> SongInfo:
+    def scrape_song_info(
+        self,
+        url: str,
+    ) -> SongInfo:
         """
+        This wants the large song uuid
+
         Extracts metadata, image, and URLs from the Suno page.
         This Function will return the updated SongInfo BaseModel class
         """
 
         url = url.strip()
+
         if not url.startswith("http"):
             song_id = self.extract_song_id(url)
             if song_id:
