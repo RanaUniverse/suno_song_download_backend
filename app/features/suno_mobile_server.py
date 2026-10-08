@@ -189,9 +189,9 @@ async def api_download(req: DownloadRequest, background_tasks: BackgroundTasks):
         if fmt not in {"m4a", "mp3", "wav"}:
             raise HTTPException(status_code=400, detail="Format must be m4a, mp3, or wav")
         res = scraper.download_song(url, output_dir=DOWNLOADS_DIR, audio_format=fmt)
-        info = res["info"]
-        audio_file = os.path.basename(res["audio_path"])
-        duration = res.get("duration", 0.0)
+        info = res.info
+        audio_file = os.path.basename(res.audio_path)
+        duration = res.duration
         dur_m = int(duration // 60)
         dur_s = int(duration % 60)
         duration_formatted = f"{dur_m}:{dur_s:02d}"
@@ -209,26 +209,25 @@ async def api_download(req: DownloadRequest, background_tasks: BackgroundTasks):
         )
 
         cover_url = ""
-        if res.get("cover_path") and os.path.exists(res["cover_path"]):
-            cover_file = os.path.basename(res["cover_path"])
+        if res.cover_path and os.path.exists(res.cover_path):
+            cover_file = os.path.basename(res.cover_path)
             cover_url = f"/downloads/{urllib.parse.quote(cover_file)}"
         elif info.image_url:
             cover_url = info.image_url
 
         # Schedule auto-deletion in 5 minutes (300s) to avoid taking up disk space on the server
-        if res.get("audio_path"):
-            background_tasks.add_task(delayed_remove_file, res["audio_path"], 300)
-        if res.get("cover_path"):
-            background_tasks.add_task(delayed_remove_file, res["cover_path"], 300)
-        if res.get("metadata_path"):
-            background_tasks.add_task(delayed_remove_file, res["metadata_path"], 300)
+        background_tasks.add_task(delayed_remove_file, res.audio_path, 300)
+        if res.cover_path:
+            background_tasks.add_task(delayed_remove_file, res.cover_path, 300)
+        if res.metadata_path:
+            background_tasks.add_task(delayed_remove_file, res.metadata_path, 300)
 
         return {
             "success": True,
             "title": info.title,
             "tags": info.tags,
             "filename": audio_file,
-            "format": res.get("format", fmt),
+            "format": res.format,
             "download_url": f"/downloads/{urllib.parse.quote(audio_file)}",
             "cover_url": cover_url,
             "duration_seconds": duration,
@@ -324,19 +323,16 @@ async def api_generate_sample(req: SampleRequest, background_tasks: BackgroundTa
             apply_fade=True,
         )
 
-        sample_filename = sample_res["filename"]
+        sample_filename = sample_res.filename
         # Schedule auto-deletion in 5 minutes (300s)
-        if sample_res.get("sample_path"):
-            background_tasks.add_task(
-                delayed_remove_file, sample_res["sample_path"], 300
-            )
+        background_tasks.add_task(delayed_remove_file, sample_res.sample_path, 300)
 
         return {
             "success": True,
             "filename": sample_filename,
             "sample_url": f"/downloads/{urllib.parse.quote(sample_filename)}",
-            "sample_duration": sample_res["actual_sample_duration"],
-            "total_duration": sample_res["total_duration"],
+            "sample_duration": sample_res.actual_sample_duration,
+            "total_duration": sample_res.total_duration,
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})

@@ -41,7 +41,12 @@ import imageio_ffmpeg  # type: ignore This was pystub issu
 from app.config import settings
 
 from app.constants import UUID_REGEX
-from app.features.suno.models import SongInfo
+from app.features.suno.models import (
+    AudioSampleResult,
+    DownloadResult,
+    SampleDownloadResult,
+    SongInfo,
+)
 
 DEFAULT_HEADERS = settings.suno.default_headers
 
@@ -418,7 +423,7 @@ class SunoScraper:
         start_sec: float = 0.0,
         duration_sec: Optional[float] = None,
         apply_fade: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> AudioSampleResult:
         """
         Generates an MP3/WAV sample/preview of a portion of the song.
         If duration_sec is not specified, it is automatically calculated based on the total duration:
@@ -501,14 +506,14 @@ class SunoScraper:
 
         sample_duration = self.get_audio_duration(output_sample_mp3)
 
-        return {
-            "sample_path": output_sample_mp3,
-            "filename": os.path.basename(output_sample_mp3),
-            "total_duration": total_duration,
-            "start_sec": start_sec,
-            "duration_sec": duration_sec,
-            "actual_sample_duration": sample_duration,
-        }
+        return AudioSampleResult(
+            sample_path=output_sample_mp3,
+            filename=os.path.basename(output_sample_mp3),
+            total_duration=total_duration,
+            start_sec=start_sec,
+            duration_sec=duration_sec,
+            actual_sample_duration=sample_duration,
+        )
 
     def download_sample_direct(
         self,
@@ -520,7 +525,7 @@ class SunoScraper:
         apply_fade: bool = True,
         save_cover: bool = True,
         progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
-    ) -> Dict[str, Any]:
+    ) -> SampleDownloadResult:
         """
         Directly downloads and generates an audio sample (preview) from a Suno URL,
         without needing to save the full song to disk beforehand.
@@ -556,20 +561,29 @@ class SunoScraper:
             elif isinstance(duration_sec, (int, float)):
                 dur_calc = float(duration_sec)
 
-            res = self.create_audio_sample(
+            sample = self.create_audio_sample(
                 candidate_audio,
                 start_sec=start_sec,
                 duration_sec=dur_calc,
                 apply_fade=apply_fade,
             )
-            res["info"] = info
+            cover_path = None
             if save_cover and info.image_url:
                 cover_ext = ".jpeg" if ".jpeg" in info.image_url else ".png"
                 cover_path = os.path.join(output_dir, f"{base_name}{cover_ext}")
                 if not os.path.exists(cover_path):
                     self.download_cover(info.image_url, cover_path)
-                res["cover_path"] = cover_path
-            return res
+            return SampleDownloadResult(
+                info=info,
+                sample_path=sample.sample_path,
+                filename=sample.filename,
+                total_duration=sample.total_duration,
+                start_sec=sample.start_sec,
+                duration_sec=sample.duration_sec,
+                actual_sample_duration=sample.actual_sample_duration,
+                cover_path=cover_path,
+                format=ext,
+            )
 
         # 2. If the complete one does not exist, download and decrypt
         # the stream to a temporary file that will be deleted upon completion
@@ -750,17 +764,17 @@ class SunoScraper:
             if progress_callback:
                 progress_callback("Completed", downloaded, total_size, 100.0)
 
-            return {
-                "info": info,
-                "sample_path": output_sample_file,
-                "filename": os.path.basename(output_sample_file),
-                "total_duration": total_duration,
-                "start_sec": start_sec,
-                "duration_sec": calc_dur,
-                "actual_sample_duration": sample_actual_duration,
-                "cover_path": cover_path,
-                "format": ext,
-            }
+            return SampleDownloadResult(
+                info=info,
+                sample_path=output_sample_file,
+                filename=os.path.basename(output_sample_file),
+                total_duration=total_duration,
+                start_sec=start_sec,
+                duration_sec=calc_dur,
+                actual_sample_duration=sample_actual_duration,
+                cover_path=cover_path,
+                format=ext,
+            )
 
         finally:
             if os.path.exists(temp_decrypted):
@@ -775,7 +789,7 @@ class SunoScraper:
         output_dir: Optional[str] = None,
         output_format: Optional[str] = None,
         progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
-    ) -> Dict[str, Any]:
+    ) -> DownloadResult:
         """
         Separates a song into two independent tracks:
           1. Instrumental Track (Music without vocals with bass and rhythms preserved)
@@ -928,7 +942,7 @@ class SunoScraper:
         save_cover: bool = True,
         save_metadata: bool = True,
         progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
-    ) -> Dict[str, Any]:
+    ) -> DownloadResult:
         """Downloads, decrypts, and saves the full song as M4A, MP3, or WAV."""
         info = self.scrape_song_info(url)
         os.makedirs(output_dir, exist_ok=True)
@@ -941,17 +955,6 @@ class SunoScraper:
         if fmt not in {"m4a", "mp3", "wav"}:
             raise ValueError(f"Unsupported audio format: {audio_format}")
         ext = fmt
-
-        result = {
-            "info": info,
-            "audio_path": None,
-            "mp3_path": None,
-            "m4a_path": None,
-            "format": ext,
-            "cover_path": None,
-            "metadata_path": None,
-            "duration": 0.0,
-        }
 
         # Decrypt and save audio (original M4A, MP3, or WAV)
         audio_out = os.path.join(output_dir, f"{base_name}.{ext}")
@@ -979,14 +982,11 @@ class SunoScraper:
                 keep_m4a=keep_m4a,
                 progress_callback=progress_callback,
             )
-        result["audio_path"] = final_audio_path
-        result["mp3_path"] = final_audio_path
-        if ext == "m4a" or keep_m4a:
-            result["m4a_path"] = m4a_out
-        # Backward compatiability
-        result["duration"] = self.get_audio_duration(final_audio_path)
+        m4a_path = m4a_out if ext == "m4a" or keep_m4a else None
+        duration = self.get_audio_duration(final_audio_path)
 
         # Save Cover Art
+        cover_path = None
         if save_cover and info.image_url:
             cover_ext = ".jpeg" if ".jpeg" in info.image_url else ".png"
             cover_path = os.path.join(output_dir, f"{base_name}{cover_ext}")
@@ -994,9 +994,12 @@ class SunoScraper:
                 info.image_url,
                 cover_path,
             ):
-                result["cover_path"] = cover_path
+                pass
+            else:
+                cover_path = None
 
         # Save Lyrics and Metadata
+        metadata_path = None
         if save_metadata:
             meta_path = os.path.join(output_dir, f"{base_name}_info.txt")
             with open(meta_path, "w", encoding="utf-8") as f:
@@ -1005,15 +1008,23 @@ class SunoScraper:
                 f.write(f"Format: {ext.upper()}\n")
                 f.write(f"Original Link: {info.source_url}\n")
                 f.write(f"Tags / Style: {info.tags}\n")
-                dur_m = int(result["duration"] // 60)
-                dur_s = int(result["duration"] % 60)
-                f.write(f"Duration: {dur_m}:{dur_s:02d} ({result['duration']:.1f}s)\n")
+                dur_m = int(duration // 60)
+                dur_s = int(duration % 60)
+                f.write(f"Duration: {dur_m}:{dur_s:02d} ({duration:.1f}s)\n")
                 f.write("-" * 50 + "\n")
                 f.write("LYRICS / PROMPT:\n")
                 f.write(f"{info.prompt or 'Not available'}\n")
-            result["metadata_path"] = meta_path
+            metadata_path = meta_path
 
-        return result
+        return DownloadResult(
+            info=info,
+            audio_path=final_audio_path,
+            format=ext,
+            duration=duration,
+            cover_path=cover_path,
+            metadata_path=metadata_path,
+            m4a_path=m4a_path,
+        )
 
 
 def launch_cli():
@@ -1108,13 +1119,13 @@ def launch_cli():
                 progress_callback=progress_cb,
             )
             print(f"\n\n✅ Sample generated without downloading the full song!")
-            print(f"🎵 Title: {sample_res['info']['title']}")
+            print(f"🎵 Title: {sample_res.info.title}")
             print(
-                f"✂️ Sample duration: {sample_res['actual_sample_duration']:.1f}s (Total: {sample_res['total_duration']:.1f}s)"
+                f"✂️ Sample duration: {sample_res.actual_sample_duration:.1f}s (Total: {sample_res.total_duration:.1f}s)"
             )
-            print(f"🎧 Sample file: {sample_res['sample_path']}")
-            if sample_res.get("cover_path"):
-                print(f"🖼️ Cover: {sample_res['cover_path']}")
+            print(f"🎧 Sample file: {sample_res.sample_path}")
+            if sample_res.cover_path:
+                print(f"🖼️ Cover: {sample_res.cover_path}")
             return
 
         print(
@@ -1132,18 +1143,18 @@ def launch_cli():
             f"\n\n✅ Download and decryption completed in "
             f"{args.format.upper()} format!"
         )
-        print(f"🎵 Title: {res['info'].title}")
+        print(f"🎵 Title: {res.info.title}")
 
-        dur_m = int(res["duration"] // 60)
-        dur_s = int(res["duration"] % 60)
-        print(f"⏱️ Total duration: {dur_m}:{dur_s:02d} ({res['duration']:.1f}s)")
-        print(f"🎧 Audio file ({args.format.upper()}): {res['audio_path']}")
-        if res.get("m4a_path") and args.format != "m4a":
-            print(f"📱 Original M4A: {res['m4a_path']}")
-        if res.get("cover_path"):
-            print(f"🖼️ Cover: {res['cover_path']}")
-        if res.get("metadata_path"):
-            print(f"📄 Lyrics and Metadata: {res['metadata_path']}")
+        dur_m = int(res.duration // 60)
+        dur_s = int(res.duration % 60)
+        print(f"⏱️ Total duration: {dur_m}:{dur_s:02d} ({res.duration:.1f}s)")
+        print(f"🎧 Audio file ({args.format.upper()}): {res.audio_path}")
+        if res.m4a_path and args.format != "m4a":
+            print(f"📱 Original M4A: {res.m4a_path}")
+        if res.cover_path:
+            print(f"🖼️ Cover: {res.cover_path}")
+        if res.metadata_path:
+            print(f"📄 Lyrics and Metadata: {res.metadata_path}")
 
         # If a sample was requested via command
         if args.sample:
@@ -1154,17 +1165,17 @@ def launch_cli():
                 except ValueError:
                     dur_req = None
             sample_res = scraper.create_audio_sample(
-                res["audio_path"], duration_sec=dur_req
+                res.audio_path, duration_sec=dur_req
             )
             print(
-                f"✂️ Sample generated ({sample_res['actual_sample_duration']:.1f}s): {sample_res['sample_path']}"
+                f"✂️ Sample generated ({sample_res.actual_sample_duration:.1f}s): {sample_res.sample_path}"
             )
 
         # If track and vocal separation was requested
         if args.separate:
             print("\n🎤 Separating instrumental track and vocals...")
             sep_res = scraper.separate_vocals_and_instrumental(
-                res["audio_path"], output_format=args.format
+                res.audio_path, output_format=args.format
             )
             print(f"🎹 Instrumental Track: {sep_res['instrumental_path']}")
             print(f"🎙️ Vocals Only (Acapella): {sep_res['vocals_path']}")
@@ -1545,15 +1556,17 @@ def launch_gui():
                     )
 
                     # Update song info card
-                    info = s_res.get("info")
+                    info = (
+                        s_res.info if isinstance(s_res, SampleDownloadResult) else None
+                    )
                     if info:
                         lbl_song_title.config(text=f"🎵 {info.title}")
-                        tot_dur = s_res.get("total_duration", 0.0)
+                        tot_dur = s_res.total_duration
                         dur_m = int(tot_dur // 60)
                         dur_s = int(tot_dur % 60)
                         fmt_label = var_format.get().upper()
                         lbl_song_meta.config(
-                            text=f"🏷️ {info.tags or 'No style'}  |  ⏱️ Total: {dur_m}:{dur_s:02d}  |  ✂️ Sample: {s_res['actual_sample_duration']:.1f}s  |  💿 {fmt_label}"
+                            text=f"🏷️ {info.tags or 'No style'}  |  ⏱️ Total: {dur_m}:{dur_s:02d}  |  ✂️ Sample: {s_res.actual_sample_duration:.1f}s  |  💿 {fmt_label}"
                         )
                         current_duration[0] = tot_dur
 
@@ -1562,11 +1575,10 @@ def launch_gui():
                         txt_lyrics.insert("1.0", info.prompt or "No lyrics available.")
                         txt_lyrics.config(state="disabled")
 
-                        if s_res.get("cover_path") and os.path.exists(
-                            s_res["cover_path"]
-                        ):
+                        cover_path = s_res.cover_path
+                        if cover_path and os.path.exists(cover_path):
                             try:
-                                img = Image.open(s_res["cover_path"])
+                                img = Image.open(cover_path)
                                 img = img.resize((100, 100), Image.Resampling.LANCZOS)
                                 tk_img = ImageTk.PhotoImage(img)
                                 cover_label.config(image=tk_img, text="")
@@ -1574,19 +1586,24 @@ def launch_gui():
                             except Exception:
                                 pass
 
-                last_sample_file[0] = s_res["sample_path"]
+                last_sample_file[0] = s_res.sample_path
                 progress_bar["value"] = 100
                 status_var.set(
-                    f"✅ Sample ({s_res['actual_sample_duration']:.1f}s) saved successfully! ({os.path.basename(s_res['sample_path'])})"
+                    f"✅ Sample ({s_res.actual_sample_duration:.1f}s) saved successfully! ({os.path.basename(s_res.sample_path)})"
                 )
                 btn_sample_play.config(state="normal", text="▶️ Play Sample")
+                sample_title = (
+                    s_res.info.title
+                    if isinstance(s_res, SampleDownloadResult)
+                    else os.path.basename(s_res.sample_path)
+                )
                 messagebox.showinfo(
                     "Sample Created Successfully!",
                     f"Sample generated without downloading the full song:\n\n"
-                    f"🎵 Title: {s_res.get('info', {}).get('title', os.path.basename(s_res['sample_path']))}\n"
-                    f"⏱️ Sample duration: {s_res['actual_sample_duration']:.1f}s\n"
-                    f"🎧 File: {os.path.basename(s_res['sample_path'])}\n"
-                    f"📂 Location:\n{s_res['sample_path']}",
+                    f"🎵 Title: {sample_title}\n"
+                    f"⏱️ Sample duration: {s_res.actual_sample_duration:.1f}s\n"
+                    f"🎧 File: {os.path.basename(s_res.sample_path)}\n"
+                    f"📂 Location:\n{s_res.sample_path}",
                 )
             except Exception as e:
                 status_var.set(f"❌ Error creating sample: {str(e)}")
@@ -1808,13 +1825,13 @@ def launch_gui():
                     progress_callback=on_progress,
                 )
 
-                info = res["info"]
-                last_audio_file[0] = res["audio_path"]
-                current_duration[0] = res.get("duration", 0.0)
+                info = res.info
+                last_audio_file[0] = res.audio_path
+                current_duration[0] = res.duration
 
                 lbl_song_title.config(text=f"🎵 {info.title}")
-                dur_m = int(res["duration"] // 60)
-                dur_s = int(res["duration"] % 60)
+                dur_m = int(res.duration // 60)
+                dur_s = int(res.duration % 60)
                 lbl_song_meta.config(
                     text=f"🏷️ {info.tags or 'No style'}  |  ⏱️ {dur_m}:{dur_s:02d}  |  💿 {chosen_fmt.upper()}"
                 )
@@ -1825,9 +1842,9 @@ def launch_gui():
                 txt_lyrics.insert("1.0", lyrics_text)
                 txt_lyrics.config(state="disabled")
 
-                if res.get("cover_path") and os.path.exists(res["cover_path"]):
+                if res.cover_path and os.path.exists(res.cover_path):
                     try:
-                        img = Image.open(res["cover_path"])
+                        img = Image.open(res.cover_path)
                         img = img.resize((100, 100), Image.Resampling.LANCZOS)
                         tk_img = ImageTk.PhotoImage(img)
                         cover_label.config(image=tk_img, text="")
@@ -1837,14 +1854,14 @@ def launch_gui():
 
                 progress_bar["value"] = 100
                 status_var.set(
-                    f"✅ {chosen_fmt.upper()} downloaded successfully! ({os.path.basename(res['audio_path'])})"
+                    f"✅ {chosen_fmt.upper()} downloaded successfully! ({os.path.basename(res.audio_path)})"
                 )
                 btn_play.config(state="normal", text=f"▶️ Play {chosen_fmt.upper()}")
                 btn_sample_create.config(state="normal")
                 btn_stem_separate.config(state="normal")
                 messagebox.showinfo(
                     "Download Successful!",
-                    f"{chosen_fmt.upper()} song ready:\n\n{info.title}\nDuration: {dur_m}:{dur_s:02d}\n\nLocation:\n{res['audio_path']}",
+                    f"{chosen_fmt.upper()} song ready:\n\n{info.title}\nDuration: {dur_m}:{dur_s:02d}\n\nLocation:\n{res.audio_path}",
                 )
 
             except Exception as e:
