@@ -20,23 +20,44 @@ def get_welcome_message(full_name: str) -> str:
     # random_songs = get_random_demo_songs_links(5)
     # links_formatted = "\n".join([f"🎵 <code>{link}</code>" for link in random_songs])
 
-    welcome_message = (
-        f"👋 Hey <b>{full_name}</b>!\n\n"
-        "🎵 <b>Suno AI Song Downloader</b> 🚀\n\n"
-        "⬇️ Send a Suno song link\n"
-        "⚡ Get your song instantly\n"
-        "♾️ <b>Unlimited Downloads</b> 🎧\n\n"
-        "🔥 <b>LIMITED-TIME OFFER!</b> 🎁\n"
-        "💎 Enjoy unlimited music while the offer lasts! 🎶✨\n\n"
-        "❤️ <b>Help Us Keep This Service Running!</b>\n"
-        "🙏 If you enjoy using the bot, please consider supporting us.\n"
-        '💳 <a href="https://razorpay.me/@RanaUniverse">UPI</a> • '
-        '💙 <a href="https://paypal.me/RanaUniverse321">PayPal</a>\n'
-        "☕ Your support helps us keep the service online! 🚀\n\n"
-        "🎶 <b>Send a Suno link now & start downloading!</b> 🚀"
-    )
+    # welcome_message = (
+    #     f"👋 Hey <b>{full_name}</b>!\n\n"
+    #     "🎵 <b>Suno AI Song Downloader</b> 🚀\n\n"
+    #     "⬇️ Send a Suno song link\n"
+    #     "⚡ Get your song instantly\n"
+    #     "♾️ <b>Unlimited Downloads</b> 🎧\n\n"
+    #     "🔥 <b>LIMITED-TIME OFFER!</b> 🎁\n"
+    #     "💎 Enjoy unlimited music while the offer lasts! 🎶✨\n\n"
+    #     "❤️ <b>Help Us Keep This Service Running!</b>\n"
+    #     "🙏 If you enjoy using the bot, please consider supporting us.\n"
+    #     '💳 <a href="https://razorpay.me/@RanaUniverse">UPI</a> • '
+    #     '💙 <a href="https://paypal.me/RanaUniverse321">PayPal</a>\n'
+    #     "☕ Your support helps us keep the service online! 🚀\n\n"
+    #     "🎶 <b>Send a Suno link now & start downloading!</b> 🚀"
+    # )
 
-    return welcome_message
+    # return welcome_message
+
+    startup_message = (
+        f"✅ <b>Bot Back — faster, smoother and better than ever! 🚀</b>\n\n"
+        f"🚀 <b>Bot Speed Increased</b>\n"
+        f"Enjoy a Faster and more responsive bot with less waiting time.\n\n"
+        f"👑 <b>Premium Users — Ultra-Fast Downloads</b>\n"
+        f"⚡️ Premium users can now download songs in <b>around 10 seconds</b> "
+        f"with our ultra-fast download system.\n\n"
+        f"🛡 <b>More Stable & Reliable</b>\n"
+        f"✅ Improved server performance and reliability for a better experience.\n\n"
+        f"🎵 <b>Better Audio Experience</b>\n"
+        f"🎧 Enjoy smoother and more reliable song processing and downloads.\n\n"
+        f"🎧 <b>24×7 Customer Support</b>\n"
+        f"📥 Download your favorite Suno AI songs easily and quickly.\n\n"
+        f"🎶 <b>Ready to download your favorite songs?</b>\n\n"
+        f"🔥 <b>Enjoy faster downloads. Enjoy more music!</b>"
+        f"🎵 <b>Unlimited Song Downloads from Suno AI</b>\n"
+        f"🎵 <b>Join @HindiDJSong</b>\n"
+        f"📥 Just Send Your New Song link below and let the bot do the rest! 🚀\n\n"
+    )
+    return startup_message
 
 
 help_text = (
