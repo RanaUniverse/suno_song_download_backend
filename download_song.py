@@ -3,7 +3,7 @@ download_song.py
 
 """
 
-from suno_downloader import SunoScraper
+from app.features.suno_downloader import SunoScraper
 
 
 def download_suno_song(

@@ -40,7 +40,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
 # Import the audio download and processing engine
-from suno_downloader import (
+from app.features.suno_downloader import (
     SunoScraper,
     # sanitize_filename,
 )
