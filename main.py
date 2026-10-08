@@ -6,8 +6,14 @@ main.py
 
 import os
 import uvicorn
-from app.features.suno_mobile_server import app
+from app.features.suno_mobile_server import app  # type: ignore This need for import here
+from app.features.suno_mobile_server import get_local_ip
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
+    print(f"📱 Open on phone: http://{get_local_ip()}:{port}")
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=port,
+    )
