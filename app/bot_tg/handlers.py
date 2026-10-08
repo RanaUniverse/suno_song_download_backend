@@ -3,3 +3,438 @@ app/bot_tg/handlers.py
 
 Some of the handlers will be kept here
 """
+
+import asyncio
+import html
+from pathlib import Path
+
+
+from telegram import (
+    Update,
+    MessageEntity,
+    LinkPreviewOptions,
+    InlineKeyboardMarkup,
+)
+from telegram.constants import (
+    ChatAction,
+)
+from telegram.error import (
+    BadRequest,
+    TelegramError,
+)
+
+from telegram.ext import (
+    ContextTypes,
+)
+
+from app.config import settings
+from app.shared.logger_related import RanaLogger
+
+from .utils import extract_valid_song_link_from_message_entities
+
+
+from app.shared.song_info import (
+    fetch_suno_song_data_advanced,
+    calculate_song_cost,
+)
+
+from .text_formatter import (
+    generate_successful_song_caption,
+    generate_non_suno_link_received_text,
+    generate_wrong_suno_link_received_text,
+    generate_suno_link_received_confirmation_message,
+    generate_no_link_received_text,
+    generate_song_details_only,
+    # generate_wrong_link_received_caption,
+)
+
+from .keyboards import (
+    generate_dynamic_keyboard,
+    generate_buttons_for_attach_with_song,
+)
+
+from .config import StickerFileId
+
+
+from app.shared.song_info import SunoSongFrontendData
+
+from app.config import settings
+
+from app.shared.song_download import download_suno_song
+
+
+
+# from app.utils import generate_direct_song_download_url
+# from app.features.browser.song_download import download_song_in_playwright
+# from app.features.browser.open_pages import get_screenshot
+# from .download_file import download_image_to_memory
+
+# #
+
+
+BOT_TOKEN = settings.bot.token.get_secret_value()
+SONG_FORWARD_GROUP_ID = settings.bot.song_forward_group_id
+
+
+async def caps(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    This will send the later part of the command return in upper text
+    '/caps this text will go to uppercase'
+    """
+    if not update.effective_user:
+        return
+
+    if not context.args:
+        warning_text = (
+            "⚠️ <b>Oops!</b> You forgot to add some text.\n\n"
+            "Please use words after the /caps command like this:\n"
+            "<code>/caps hello world</code> 🔠"
+        )
+        await context.bot.send_message(
+            chat_id=update.effective_user.id,
+            text=warning_text,
+        )
+        return
+
+    uppercased_text = " ".join(context.args).upper()
+
+    response_text = f"🔠 <b>Your Uppercased Text:</b>\n\n\n{uppercased_text}"
+    await context.bot.send_message(
+        update.effective_user.id,
+        response_text,
+    )
+
+
+async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    This will try to extract the url from the text and send user back.
+
+    From the user text, i want it will extract the first url and then try
+    to match this with my base_url ie target_url
+    """
+
+    message = update.effective_message
+    chat = update.effective_chat
+    user = update.effective_user
+
+    if not message or not chat or not user:
+        RanaLogger.warning("Message & Chat should present when in text")
+        return
+
+    # https://docs.python-telegram-bot.org/en/stable/telegram.message.html#telegram.Message.parse_entities
+    urls_dict = message.parse_entities(types=[MessageEntity.URL])
+    print(f"Printing the URLS LIST {urls_dict}")
+
+    if not urls_dict:
+        text = generate_no_link_received_text()
+        await message.reply_sticker(
+            StickerFileId.NO_RED_SMOKE,
+        )
+        await message.reply_text(
+            text,
+        )
+        return
+
+    is_valid, final_song_url = extract_valid_song_link_from_message_entities(
+        urls_dict,
+    )
+
+    if not is_valid:
+        txt = generate_non_suno_link_received_text(
+            wrong_url=final_song_url,
+        )
+        await message.reply_text(txt)
+
+        # await message.reply_chat_action(
+        #     action=ChatAction.UPLOAD_PHOTO,
+        # )
+        # screenshot = await get_screenshot(
+        #     url=final_song_url,
+        # )
+        # if screenshot is not None:
+
+        #     caption = generate_wrong_link_received_caption(
+        #         wrong_url=final_song_url,
+        #     )
+
+        #     await message.reply_photo(
+        #         photo=screenshot,
+        #         caption=caption,
+        #         do_quote=True,
+        #     )
+        # else:
+        #     RanaLogger.warning("Screenhot sending fails")
+
+        # return
+
+    # Below comes to executes means the url is of suno but i not
+    # know if this is of song or channel or another
+
+    txt = generate_suno_link_received_confirmation_message(
+        url=final_song_url,
+    )
+
+    wait_message = await message.reply_text(
+        text=txt,
+        do_quote=True,
+        link_preview_options=LinkPreviewOptions(
+            is_disabled=True,
+        ),
+    )
+
+    lightning_sticker = await message.reply_sticker(
+        StickerFileId.LIGHTNING,
+    )
+
+    await message.reply_chat_action(
+        action=ChatAction.UPLOAD_PHOTO,
+    )
+
+    song_data = await asyncio.to_thread(
+        fetch_suno_song_data_advanced,
+        final_song_url,
+    )
+
+    RanaLogger.info(
+        f"Basic Song Data Requested by, {chat.id}:-> {song_data}",
+    )
+
+    # from html import escape
+    # song_title = escape(song_data.title)
+    # song_id = escape(song_data.id)
+
+    # Below condition is when the suno dont recognize the music
+    # that's why they send sometime random id on 404 response
+    clean_title = song_data.title.strip().lower()
+    if clean_title == "suno | ai music generator" or "join me on suno" in clean_title:
+
+        RanaLogger.info(
+            f"Suno Link But No Suno Song By user: {chat.id}, :-> {final_song_url}"
+        )
+
+        text = generate_wrong_suno_link_received_text()
+
+        await message.reply_text(
+            text=text,
+            do_quote=True,
+            link_preview_options=LinkPreviewOptions(
+                is_disabled=True,
+            ),
+        )
+
+        # screenshot = await get_screenshot(
+        #     url=final_song_url,
+        # )
+        # if screenshot is not None:
+
+        #     caption = generate_wrong_link_received_caption(
+        #         final_song_url,
+        #     )
+
+        #     await message.reply_photo(
+        #         photo=screenshot,
+        #         caption=caption,
+        #         do_quote=True,
+        #     )
+
+        # return
+
+    # This lines cames to executes means the song url is valid
+    # later i need to add logic to calculate and spend star cost
+    star_cost = calculate_song_cost(
+        song_data=song_data,
+    )
+
+    caption = generate_successful_song_caption(
+        song_data=song_data,
+        star_cost=star_cost,
+    )
+
+    # Here i need to check if user has valid star in his wallet
+    # i will impliment these features later
+
+    try:
+        buttons = generate_dynamic_keyboard(final_song_url)
+        print("Song image will send now")
+        song_info_photo = await message.reply_photo(
+            photo=song_data.image_url,
+            caption=caption,
+            do_quote=True,
+            reply_markup=InlineKeyboardMarkup(buttons),
+        )
+        print("Song has been goodly image will send now")
+
+        loading_sticker = await message.reply_sticker(
+            StickerFileId.LOADING_ROUNDED,
+        )
+        await lightning_sticker.delete()
+
+        await wait_message.delete()
+
+        # Now i will start the download song work here
+
+        # downloadable_song_url = generate_direct_song_download_url(
+        #     song_url=final_song_url,
+        #     song_type=settings.song.auto_download_format,
+        # )
+
+        # song_path_after_download = await download_song_in_playwright(
+        #     link=downloadable_song_url,
+        # )
+        
+        song_path_after_download = await asyncio.to_thread(
+            download_suno_song,
+            final_song_url,
+        )        
+        
+
+        print(f"Song of link {final_song_url} is done in:->",song_path_after_download)
+
+        uploading_sticker = await message.reply_sticker(
+            StickerFileId.UPLOADING_CLOUD,
+        )
+
+        await loading_sticker.delete()
+
+        if song_path_after_download is not None:
+            audio_path = Path(song_path_after_download)
+            thumbnail_path = audio_path.with_suffix(".jpeg")
+            thumbnail=None
+            if thumbnail_path.exists():
+                thumbnail = thumbnail_path.open("rb")
+
+            with open(song_path_after_download, "rb") as file:
+                await message.reply_chat_action(
+                    action=ChatAction.UPLOAD_VOICE,
+                )
+                try:
+                    # song_thumbnail = await download_image_to_memory(
+                    #     url=song_data.image_url,
+                    # )
+                    # print(song_thumbnail)
+
+                    # if song_thumbnail is not None:
+                    #     thumbnail = song_thumbnail
+                    # else:
+                    #     thumbnail = None
+
+                    song_caption = (
+                        f"{generate_song_details_only(song_data)}\n"
+                        f"📥 <b>Download this song and use it to create videos for "
+                        f"YouTube, Facebook, and more!</b>\n\n"
+                        f"😊 <b>Send more song links to download!</b> 🎶"
+                    )
+                    buttons = generate_buttons_for_attach_with_song(
+                        song_url=song_data.song_url_by_id,
+                    )
+                    audio_after_send = await message.reply_audio(
+                        audio=file,
+                        caption=song_caption,
+                        thumbnail=thumbnail,
+                        do_quote=True,
+                        reply_markup=InlineKeyboardMarkup(buttons),
+                    )
+
+                    if thumbnail:
+                        await song_info_photo.delete()
+
+                    if audio_after_send.audio:
+
+                        user_mention = (
+                            f'<a href="tg://user?id={user.id}">'
+                            f"{html.escape(user.full_name)}</a>"
+                        )
+                        await forward_song_to_channel(
+                            context=context,
+                            audio_file_id=audio_after_send.audio.file_id,
+                            song_data=song_data,
+                            user_name=f"{user_mention}",
+                        )
+
+                except Exception as e:
+                    await message.reply_text(
+                        f"Sending Audio Got TimeOUT, Please Contact Admin",
+                    )
+                    RanaLogger.info(f"{e}")
+                    return ()
+
+        else:
+            # this parts means the song path is none, ie not exists
+            await message.reply_text(
+                "❌ <b>Audio Download Failed</b>\n\n"
+                "😔 I couldn't download the audio for this song right now.\n\n"
+                "🔄 <b>Please try again in a few moments.</b>\n"
+                "💡 If the problem continues, you can contact the admins for help. 🆘",
+                do_quote=True,
+            )
+
+        await uploading_sticker.delete()
+
+    except BadRequest as e:
+        RanaLogger.warning(
+            f"❌ Telegram could not send the image: {e}",
+        )
+
+        await message.reply_text(
+            "❌ <b>Couldn't Process This Song</b>\n\n"
+            "It looks like this link is <b>invalid, unavailable, "
+            "or no longer accessible</b>.\n\n"
+            "🔗 Please send a valid <b>Suno song URL</b> and try again.\n\n"
+            "🎵 <i>Send the song link again to continue.</i>",
+            do_quote=True,
+        )
+
+    except TelegramError as e:
+        RanaLogger.warning(
+            f"❌ Telegram error while sending photo: {e}",
+        )
+
+        await message.reply_text(
+            caption,
+            do_quote=True,
+        )
+
+
+async def forward_song_to_channel(
+    context: ContextTypes.DEFAULT_TYPE,
+    audio_file_id: str,
+    song_data: SunoSongFrontendData,
+    user_name: str,
+) -> bool:
+    """
+    Forward an already-uploaded Telegram audio file to the configured
+    song channel.
+
+    Returns:
+        True: song was successfully sent
+        False: forwarding was skipped or failed
+    """
+
+    # Forwarding is disabled/not configured
+    if not SONG_FORWARD_GROUP_ID:
+        RanaLogger.info("Song forwarding is disabled: no channel ID configured.")
+        return False
+
+    try:
+        await context.bot.send_audio(
+            chat_id=SONG_FORWARD_GROUP_ID,
+            audio=audio_file_id,
+            caption=(
+                f"🎵 <b>Song downloaded by:</b> {user_name}\n\n"
+                f"{generate_song_details_only(song_data)}\n"
+            ),
+        )
+
+        RanaLogger.info(
+            f"Song successfully forwarded to channel. "
+            f"channel_id={SONG_FORWARD_GROUP_ID}, "
+            f"file_id={audio_file_id}"
+        )
+
+        return True
+
+    except TelegramError as e:
+        RanaLogger.warning(
+            f"Failed to forward song to channel " f"{SONG_FORWARD_GROUP_ID}: {e}"
+        )
+        return False

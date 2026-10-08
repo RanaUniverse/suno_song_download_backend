@@ -4,3 +4,264 @@ app/bot_tg/text_formatter.py
 This will defines what the formatter will be here
 This will format the text there which will use to send to users
 """
+
+from html import escape
+
+from app.shared.song_info import SunoSongFrontendData
+from app.shared.utils import get_random_demo_songs_links
+
+from app.config import settings
+
+SUNO_TARGET_DOMAIN = settings.external.suno_target_domain
+
+
+def get_welcome_message(full_name: str) -> str:
+
+    # random_songs = get_random_demo_songs_links(5)
+    # links_formatted = "\n".join([f"🎵 <code>{link}</code>" for link in random_songs])
+
+    welcome_message = (
+        f"👋 Hey <b>{full_name}</b>!\n\n"
+        "🎵 <b>Suno AI Song Downloader</b> 🚀\n\n"
+        "⬇️ Send a Suno song link\n"
+        "⚡ Get your song instantly\n"
+        "♾️ <b>Unlimited Downloads</b> 🎧\n\n"
+        "🔥 <b>LIMITED-TIME OFFER!</b> 🎁\n"
+        "💎 Enjoy unlimited music while the offer lasts! 🎶✨\n\n"
+        "❤️ <b>Help Us Keep This Service Running!</b>\n"
+        "🙏 If you enjoy using the bot, please consider supporting us.\n"
+        '💳 <a href="https://razorpay.me/@RanaUniverse">UPI</a> • '
+        '💙 <a href="https://paypal.me/RanaUniverse321">PayPal</a>\n'
+        "☕ Your support helps us keep the service online! 🚀\n\n"
+        "🎶 <b>Send a Suno link now & start downloading!</b> 🚀"
+    )
+
+    return welcome_message
+
+
+help_text = (
+    "🤖 <b>Help Center - Suno Song Downloader</b> 🎵\n\n"
+    "Here is how you can use this bot:\n"
+    "1️⃣ Copy a song link from our web platform (<code>rana49.online</code>).\n"
+    "2️⃣ Paste and send the link directly here in the chat.\n"
+    "3️⃣ The bot will validate the link and prepare your song for download! ✨\n\n"
+    "<b>Need more assistance?</b> Contact our support or check out /about."
+)
+
+about_text = (
+    "ℹ️ <b>About This Project</b> 🚀\n\n"
+    "This Telegram bot is the companion tool for our <b>Suno Song Download Web App</b>! 🎶\n\n"
+    "Built with Python, Linux Ubuntu, and powered by <code>python-telegram-bot</code>, "
+    "it bridges our web platform directly to your Telegram chat for fast and easy song management. 🐧💻\n\n"
+    f"🌐 Main Website: <b>{SUNO_TARGET_DOMAIN}</b>"
+)
+
+settings_text = (
+    "⚙️ <b>Your Bot Settings</b>\n\n"
+    "Here you will soon be able to configure your download preferences, notification alerts, and audio quality formats! 🎛️\n\n"
+    "<i>(Coming soon as we connect the web app database! Stay tuned 🚀)</i>"
+)
+
+token_text = (
+    "🔑 <b>Account Token Management</b>\n\n"
+    "To link your Telegram account with your profile on <b>rana49.online</b>, "
+    "you will be able to generate and submit your access token here.\n\n"
+    "<i>(This will soon let the bot sync downloads directly with your web account! 🌐)</i>"
+)
+
+
+def get_telegram_verification_success_message() -> str:
+    return (
+        "🎉 <b>Telegram Account Verified!</b>\n\n"
+        "✅ Your Telegram account has been successfully linked "
+        "to your web account.\n\n"
+        "🔗 <b>Connection status:</b> Active\n"
+        "👤 Your account is now connected and ready to use.\n\n"
+        "🚀 You can now use this bot to interact with your "
+        "Suno account directly from Telegram.\n\n"
+        "✨ You're all set! Let's get started."
+    )
+
+
+def get_telegram_verification_failed_message() -> str:
+    return (
+        "⚠️ <b>Telegram Account Not Verified</b>\n\n"
+        "❌ We couldn't verify this Telegram account with the "
+        "account you used to generate this link.\n\n"
+        "🔍 Please make sure you opened this bot using the "
+        "Telegram connection link from your web account.\n\n"
+        "💡 If you haven't linked your Telegram account yet, "
+        "please go back to the website and generate a new "
+        "connection link.\n\n"
+        "🆘 If you believe this is a mistake, please contact support."
+    )
+
+
+def generate_successful_song_caption(
+    song_data: SunoSongFrontendData,
+    star_cost: int | None = None,
+) -> str:
+    """
+    The text to shows in caption when song data is fetched successfully
+    Here this will generate and shows to the user
+    """
+    song_details_text = generate_song_details_only(
+        song_data=song_data,
+    )
+
+    if star_cost:
+        if settings.song.cost_applicable:
+            cost_txt = f"\n💳 <b>Cost:</b> <b>{star_cost} Stars ⭐</b>"
+
+        else:
+            cost_txt = (
+                f"\n💳 <b>{star_cost} Stars ⭐</b>\n"
+                f"(🎁 <b>Limited Offer: 🆓 FREE DOWNLOAD!</b>)"
+            )
+
+    else:
+        cost_txt = ""
+
+    caption = (
+        "🎵 <b>Song Details 👇👇👇</b>\n\n"
+        f"{song_details_text}"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"✨ <b>Your song is Downloading Soon!!!</b>\n"
+        f"{cost_txt}"
+    )
+
+    return caption
+
+
+def generate_song_details_only(
+    song_data: SunoSongFrontendData,
+):
+
+    song_title = escape(song_data.title)
+    # song_id = escape(song_data.id)
+    artist_name = escape(song_data.artist) if song_data.artist else "Unknown Artist"
+
+    # Build clickable profile URL if handle exists, otherwise just show the name
+    if song_data.artist_username:
+        profile_url = f"https://suno.com/@{song_data.artist_username}"
+        artist_display = f"<a href='{profile_url}'><b>{artist_name}</b></a>"
+    else:
+        artist_display = f"<b>{artist_name}</b>"
+
+    duration_text = escape(song_data.duration) if song_data.duration else "N/A"
+    created_text = escape(song_data.created_date) if song_data.created_date else "N/A"
+    plays_text = f"{song_data.plays:,}" if song_data.plays is not None else "N/A"
+    likes_text = f"{song_data.likes:,}" if song_data.likes is not None else "N/A"
+
+    song_details = (
+        f"🎧 <b>Title:</b> <a href='{song_data.song_url_by_id}'><b>{song_title}</b></a>\n"
+        f"🎤 <b>Artist:</b> {artist_display}\n"
+        f"⏱️ <b>Duration:</b> <code>{duration_text}</code>\n"
+        f"📅 <b>Released:</b> <code>{created_text}</code>\n"
+        f"👀 <b>Plays:</b> <code>{plays_text}</code>"
+        f" | "
+        f"❤️ <b>Likes:</b> <code>{likes_text}</code>\n"
+        # f"🆔 <b>Song ID:</b>\n"
+        # f"<code>{song_id}</code>\n"
+    )
+
+    return song_details
+
+
+def generate_non_suno_link_received_text(
+    wrong_url: str,
+) -> str:
+    random_songs = get_random_demo_songs_links(3)
+    links_formatted = "\n".join([f"<code>{link}</code>" for link in random_songs])
+
+    txt = (
+        f"⚠️ <b>Invalid Link Detected!</b>\n\n"
+        f"Your link (<code>{wrong_url}</code>) does not match our platform "
+        f"(<code>{SUNO_TARGET_DOMAIN}</code>).\n\n"
+        f"💡 <i>Please send a valid song link directly from our website.</i>\n\n"
+        f"Send Me Back Any Link From the Given List."
+        f"📋 <b>Try copying one of these working demo links to test:</b>\n"
+        f"{links_formatted}"
+    )
+    return txt
+
+
+def generate_wrong_suno_link_received_text() -> str:
+    """
+    Generates a helpful error message when a user sends
+    an invalid or unsupported Suno link,
+    complete with working demo links for them to test.
+    """
+
+    random_songs = get_random_demo_songs_links(3)
+    links_formatted = "\n".join([f"<code>{link}</code>" for link in random_songs])
+
+    text = (
+        "❌ <b>Invalid Song Link</b>\n\n"
+        f"The link you sent doesn't appear to be a valid Suno song URL.\n\n"
+        "💡 <b>Tip:</b> Make sure you are sending a direct link to an individual Suno song or track, rather than a profile or generator page.\n\n"
+        "📋 <b>Try copying and testing one of these working demo links instead:</b>\n\n"
+        f"{links_formatted}\n\n"
+        "✨ <i>Send a valid link whenever you're ready!</i>"
+    )
+    return text
+
+
+def generate_suno_link_received_confirmation_message(
+    url: str,
+):
+    """
+    When user send a suno link the first message it will send sayin
+    him to wait until server verifies the song later this text will remove
+    """
+
+    txt = (
+        f"🎵 <b>Suno Link Received!</b> ✨\n\n"
+        f"🔗 <b>Source URL</b>\n"
+        f'🔗 <a href="{url}"><b>Open Song in Suno App</b></a>\n\n'
+        f"━━━━━━━━━━━━━━━━━━\n\n"
+        f"🔍 <b>Fetching song details...</b>\n\n"
+        f"⏳ Please wait while I:\n"
+        f"• 🎧 Identify the song\n"
+        f"• 🖼️ Fetch the cover artwork\n"
+        f"• 🎵 Prepare the audio details\n"
+        f"• 📥 Get everything ready for you\n\n"
+        f"━━━━━━━━━━━━━━━━━━\n\n"
+        f"🚀 <i>Almost there! Your song details will appear below shortly...</i> 🎶"
+    )
+    return txt
+
+
+def generate_no_link_received_text() -> str:
+    """
+    Generates a helpful message when the user sends a message
+    without any URL, including a few demo song links.
+    """
+
+    random_songs = get_random_demo_songs_links(3)
+    links_formatted = "\n".join([f"🎵 <code>{link}</code>" for link in random_songs])
+
+    return (
+        "🔗 <b>No Song Link Found</b>\n\n"
+        "I couldn't find a link in your message.\n\n"
+        "📥 <b>How to use the bot:</b>\n"
+        "Send me a direct link to a Suno song from our website, "
+        "and I'll fetch the song details for you. 🎶\n\n"
+        "💡 <b>Not sure what to send?</b>\n"
+        "Try one of these working demo songs:\n\n"
+        f"{links_formatted}\n\n"
+        "✨ <i>Just copy and send one of the links above to try it!</i>"
+    )
+
+
+def generate_wrong_link_received_caption(
+    wrong_url: str,
+) -> str:
+    caption = (
+        "The link you sent isn't a valid <b>Suno song URL</b>.\n\n"
+        "🔗 <b>Received:</b>\n"
+        f"<code>{escape(wrong_url)}</code>\n\n"
+        "👀 Here's a preview of the page that link opens.\n\n"
+        "🎵 Please send a <b>Suno song link</b> if you'd like me to download the song."
+    )
+    return caption
