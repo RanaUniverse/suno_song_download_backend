@@ -46,6 +46,7 @@ from app.features.suno.models import (
     DownloadResult,
     SampleDownloadResult,
     SongInfo,
+    SeparationResult,
 )
 from app.shared.logger_related import RanaLogger
 
@@ -88,6 +89,8 @@ class SunoScraper:
     ) -> str | None:
         """
         Attempts to resolve a short Suno shared link (/s/CODE) to the actual song ID.
+
+        It returns the large Content ID if any
         """
         endpoints = [
             f"https://studio-api.prod.suno.com/api/share/code/{share_code}",
@@ -140,6 +143,7 @@ class SunoScraper:
 
         url = url.strip()
 
+        # so this first check if the large_id is working here not url
         if not url.startswith("http"):
             song_id = self.extract_song_id(url)
             if song_id:
@@ -152,13 +156,18 @@ class SunoScraper:
         if share_match:
             share_code = share_match.group(1)
             resolved_id = self.resolve_share_code(share_code)
+
             if resolved_id:
                 url = f"https://suno.com/song/{resolved_id}"
 
         song_id = self.extract_song_id(url)
 
         # Make an HTTP request following redirects
-        response = self.session.get(url, timeout=15, allow_redirects=True)
+        response = self.session.get(
+            url,
+            timeout=15,
+            allow_redirects=True,
+        )
         final_url = response.url
 
         # Check if it redirected to the Suno homepage (broken, private, or expired link)
@@ -209,7 +218,10 @@ class SunoScraper:
             )
 
         html = response.text
-        soup = BeautifulSoup(html, "html.parser")
+        soup = BeautifulSoup(
+            html,
+            "html.parser",
+        )
 
         info = SongInfo(
             id=song_id,
@@ -234,6 +246,7 @@ class SunoScraper:
             "meta", {"name": "twitter:image"}
         )
 
+        # This will give the correct image url i checked with song & hook
         image_content = og_image.get("content") if og_image else None
         if isinstance(image_content, str):
             info.image_url = image_content
@@ -279,16 +292,18 @@ class SunoScraper:
         progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
     ) -> str:
         """
-        Decrypts Suno audio using the Mango system (AES-GCM unwrapping + AES-128-CTR stream decryption)
-        and converts it to the desired format (MP3 320 kbps or uncompressed WAV).
+        Decrypts Suno audio using the Mango system
+        (AES-GCM unwrapping + AES-128-CTR stream decryption)
+        and converts it to the desired format (M4A, MP3 320 kbps or uncompressed WAV).
         """
         if progress_callback:
-            progress_callback("licencia", 0, 0, 10.0)
+            progress_callback("License", 0, 0, 10.0)
 
         # 1. Get Mango license keys
         rights_url = "https://studio-api.prod.suno.com/api/mango/rights"
         payload = {"content_params": {"content_id": song_id, "content_type": "clip"}}
         rights_res = self.session.post(rights_url, json=payload, timeout=15)
+        print("xxxxxxxxxxx", rights_res)
         if rights_res.status_code != 200:
             raise Exception(
                 f"Failed to obtain Suno audio license (HTTP {rights_res.status_code})"
@@ -419,8 +434,14 @@ class SunoScraper:
 
         return output_audio_path
 
-    def get_audio_duration(self, file_path: str) -> float:
-        """Gets the duration of the audio file in seconds using FFmpeg."""
+    def get_audio_duration_from_ffmpeg(
+        self,
+        file_path: str,
+    ) -> float:
+        """
+        Gets the duration of the audio file in seconds using FFmpeg.
+        """
+
         if not os.path.exists(file_path):
             return 0.0
         try:
@@ -450,9 +471,11 @@ class SunoScraper:
           - If duration is > 180s (e.g., 4-5m): 120s (2m) sample or 45% of the total.
         """
         if not os.path.exists(input_mp3):
-            raise FileNotFoundError(f"Audio file does not exist: {input_mp3}")
+            raise FileNotFoundError(
+                f"Audio file does not exist: {input_mp3}",
+            )
 
-        total_duration = self.get_audio_duration(input_mp3)
+        total_duration = self.get_audio_duration_from_ffmpeg(input_mp3)
 
         # Intelligent sample duration calculation
         if duration_sec is None or duration_sec <= 0:
@@ -522,7 +545,7 @@ class SunoScraper:
         if conv_res.returncode != 0:
             raise Exception(f"Error generating sample with FFmpeg: {conv_res.stderr}")
 
-        sample_duration = self.get_audio_duration(output_sample_mp3)
+        sample_duration = self.get_audio_duration_from_ffmpeg(output_sample_mp3)
 
         return AudioSampleResult(
             sample_path=output_sample_mp3,
@@ -572,7 +595,7 @@ class SunoScraper:
                     break
 
         if os.path.exists(candidate_audio) and os.path.getsize(candidate_audio) > 50000:
-            tot = self.get_audio_duration(candidate_audio)
+            tot = self.get_audio_duration_from_ffmpeg(candidate_audio)
             dur_calc = None
             if duration_sec == "half":
                 dur_calc = max(15.0, tot * 0.5) if tot > 0 else 60.0
@@ -691,7 +714,7 @@ class SunoScraper:
             with open(temp_decrypted, "wb") as f:
                 f.write(decrypted_audio)
 
-            total_duration = self.get_audio_duration(temp_decrypted)
+            total_duration = self.get_audio_duration_from_ffmpeg(temp_decrypted)
 
             if duration_sec == "half":
                 calc_dur = (
@@ -770,7 +793,9 @@ class SunoScraper:
                     f"Error generating sample with FFmpeg: {conv_res.stderr}"
                 )
 
-            sample_actual_duration = self.get_audio_duration(output_sample_file)
+            sample_actual_duration = self.get_audio_duration_from_ffmpeg(
+                output_sample_file
+            )
 
             cover_path = None
             if save_cover and info.image_url:
@@ -807,7 +832,7 @@ class SunoScraper:
         output_dir: Optional[str] = None,
         output_format: Optional[str] = None,
         progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
-    ) -> DownloadResult:
+    ) -> SeparationResult:
         """
         Separates a song into two independent tracks:
           1. Instrumental Track (Music without vocals with bass and rhythms preserved)
@@ -857,15 +882,15 @@ class SunoScraper:
             and os.path.getsize(instrumental_path) > 50000
             and os.path.getsize(vocals_path) > 50000
         ):
-            dur = self.get_audio_duration(instrumental_path)
-            return {
-                "instrumental_path": instrumental_path,
-                "vocals_path": vocals_path,
-                "instrumental_filename": os.path.basename(instrumental_path),
-                "vocals_filename": os.path.basename(vocals_path),
-                "duration": dur,
-                "format": fmt,
-            }
+            dur = self.get_audio_duration_from_ffmpeg(instrumental_path)
+            return SeparationResult(
+                instrumental_path=instrumental_path,
+                vocals_path=vocals_path,
+                instrumental_filename=os.path.basename(instrumental_path),
+                vocals_filename=os.path.basename(vocals_path),
+                duration=dur,
+                format=fmt,
+            )
 
         if progress_callback:
             progress_callback("Separating Instrumental", 0, 0, 20.0)
@@ -928,19 +953,25 @@ class SunoScraper:
         if progress_callback:
             progress_callback("Completed", 0, 0, 100.0)
 
-        dur = self.get_audio_duration(instrumental_path)
+        dur = self.get_audio_duration_from_ffmpeg(instrumental_path)
 
-        return {
-            "instrumental_path": instrumental_path,
-            "vocals_path": vocals_path,
-            "instrumental_filename": os.path.basename(instrumental_path),
-            "vocals_filename": os.path.basename(vocals_path),
-            "duration": dur,
-            "format": fmt,
-        }
+        return SeparationResult(
+            instrumental_path=instrumental_path,
+            vocals_path=vocals_path,
+            instrumental_filename=os.path.basename(instrumental_path),
+            vocals_filename=os.path.basename(vocals_path),
+            duration=dur,
+            format=fmt,
+        )
 
-    def download_cover(self, url: str, destination_path: str):
-        """Downloads the cover art."""
+    def download_cover(
+        self,
+        url: str,
+        destination_path: str,
+    ):
+        """
+        Downloads the cover art.
+        """
         try:
             res = self.session.get(url, timeout=15)
             if res.status_code == 200:
@@ -1001,7 +1032,7 @@ class SunoScraper:
                 progress_callback=progress_callback,
             )
         m4a_path = m4a_out if ext == "m4a" or keep_m4a else None
-        duration = self.get_audio_duration(final_audio_path)
+        duration = self.get_audio_duration_from_ffmpeg(final_audio_path)
 
         # Save Cover Art
         cover_path = None
@@ -1195,8 +1226,11 @@ def launch_cli():
             sep_res = scraper.separate_vocals_and_instrumental(
                 res.audio_path, output_format=args.format
             )
-            print(f"🎹 Instrumental Track: {sep_res['instrumental_path']}")
-            print(f"🎙️ Vocals Only (Acapella): {sep_res['vocals_path']}")
+            # print(f"🎹 Instrumental Track: {sep_res['instrumental_path']}")
+            # print(f"🎙️ Vocals Only (Acapella): {sep_res['vocals_path']}")
+
+            print(f"🎹 Instrumental Track: {sep_res.instrumental_path}")
+            print(f"🎙️ Vocals Only (Acapella): {sep_res.vocals_path}")
 
     except Exception as e:
         print(f"\n❌ Error during download: {e}")
@@ -1519,7 +1553,9 @@ def launch_gui():
         choice = sample_choice_var.get()
         dur = None
         tot = current_duration[0] or (
-            scraper.get_audio_duration(last_audio_file[0]) if has_full_download else 0.0
+            scraper.get_audio_duration_from_ffmpeg(last_audio_file[0])
+            if has_full_download
+            else 0.0
         )
 
         if "30" in choice:
@@ -1714,8 +1750,10 @@ def launch_gui():
                 sep_res = scraper.separate_vocals_and_instrumental(
                     last_audio_file[0], output_format=var_format.get()
                 )
-                last_inst_file[0] = sep_res["instrumental_path"]
-                last_vocal_file[0] = sep_res["vocals_path"]
+                # last_inst_file[0] = sep_res["instrumental_path"]
+                # last_vocal_file[0] = sep_res["vocals_path"]
+                last_inst_file[0] = sep_res.instrumental_path
+                last_vocal_file[0] = sep_res.vocals_path
                 status_var.set(
                     "✅ Instrumental track and vocals separated successfully!"
                 )
@@ -1723,13 +1761,15 @@ def launch_gui():
                 btn_play_vocal.config(state="normal")
                 messagebox.showinfo(
                     "Separation Successful",
-                    f"Tracks generated!\n\n🎹 Instrumental:\n{sep_res['instrumental_filename']}\n\n🎙️ Vocals Only:\n{sep_res['vocals_filename']}",
+                    f"Tracks generated!\n\n🎹 Instrumental:\n{sep_res.instrumental_filename}\n\n🎙️ Vocals Only:\n{sep_res.vocals_filename}",
                 )
+
             except Exception as e:
                 status_var.set(f"❌ Error separating: {str(e)}")
                 messagebox.showerror(
                     "Error", f"The audio could not be separated: {str(e)}"
                 )
+
             finally:
                 btn_stem_separate.config(
                     state="normal", text="✨ Separate Track and Vocals"
