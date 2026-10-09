@@ -23,6 +23,7 @@ def download_suno_song(
 
 def main():
     song_link = "https://suno.com/song/11e26b83-ed16-425f-824b-9500240576b4"
+    song_link = "https://suno.com/s/T7GIvQDqjkk8bMJ2"
 
     print(f"Testing link: {song_link} ...")
     path = download_suno_song(song_link)

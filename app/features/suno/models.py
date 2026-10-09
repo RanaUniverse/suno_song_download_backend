@@ -9,15 +9,11 @@ from pydantic import BaseModel, Field
 
 
 class SongInfo(BaseModel):
-    """Metadata extracted from a Suno song page."""
+    """
+    Metadata extracted from a Suno song page.
+    """
 
     id: str
-    title: str = "Suno AI Song"
-    audio_url: str | None = None
-    image_url: str | None = None
-    prompt: str = ""
-    tags: str = ""
-    source_url: str
     type: Literal["hook", "song"] = Field(
         default="song",
         description=(
@@ -25,10 +21,32 @@ class SongInfo(BaseModel):
             "need another logic so i keep like this"
         ),
     )
+
+    title: str = "Suno AI Song"
+    prompt: str | None = None
+    tags: str | None = None
+    source_url: str = Field(
+        description="The final url this song will open by ",
+    )
+    audio_url: str | None = None
+    image_url: str | None = None
     video_url: str | None = Field(
         description="This is for hook songs",
         default=None,
     )
+
+
+class ResolvedSunoLink(BaseModel):
+    type: Literal["song", "hook"]
+    content_id: str
+
+    @property
+    def full_url(self) -> str:
+        """
+        From the large song_id this will make the final
+        redirected like url here at last
+        """
+        return f"https://suno.com/{self.type}/{self.content_id}"
 
 
 class AudioSampleResult(BaseModel):

@@ -49,6 +49,9 @@ from app.features.suno.models import (
     SeparationResult,
 )
 from app.shared.logger_related import RanaLogger
+from .suno.models import ResolvedSunoLink
+
+from .suno.scraper import HookSongScraper
 
 DEFAULT_HEADERS = settings.suno.default_headers
 
@@ -118,6 +121,67 @@ class SunoScraper:
 
         return None
 
+    def resolve_share_code_new(
+        self,
+        share_code: str,
+    ) -> ResolvedSunoLink | None:
+        """
+        Attempts to resolve a short Suno shared link (/s/CODE) to the actual song ID.
+
+        It returns the large Content ID and type of this if any
+        """
+
+        endpoints = [
+            f"https://studio-api.prod.suno.com/api/share/code/{share_code}",
+            f"https://studio-api-prod.suno.com/api/share/code/{share_code}",
+        ]
+
+        headers = settings.suno.share_api_headers
+
+        for ep in endpoints:
+            try:
+                res = self.session.get(ep, headers=headers, timeout=8)
+                if res.status_code == 200:
+                    data = res.json()
+                    content_type = data.get("content_type")
+                    content_id = data.get("content_id")
+
+                    if not isinstance(content_type, str):
+                        raise ValueError("Missing or invalid content_type")
+
+                    if not isinstance(content_id, str):
+                        raise ValueError("Missing or invalid content_id")
+
+                    if content_type not in ("song", "hook"):
+                        raise ValueError(
+                            f"Unsupported Suno content type: {content_type}"
+                        )
+
+                    # after i get the content_id i will try to check if this looks
+                    # like the uuid of suno if yes then say this is id
+                    if content_type == "hook":
+                        print("This is hook song need differen way")
+                        song_info = HookSongScraper().scrape(content_id)
+                        print("NOwwwwwwwww")
+                        print(song_info)
+                        return ResolvedSunoLink(
+                            type=song_info.type,
+                            content_id=song_info.id,
+                        )
+                    # TODO now later i will use the logic of seaprate the beautifulsoup
+
+                    if content_id and UUID_REGEX.search(str(content_id)):
+                        return ResolvedSunoLink(
+                            content_id=content_id,
+                            type=content_type,
+                        )
+
+            except Exception as e:
+                RanaLogger.warning(f"{e}")
+                pass
+
+        return None
+
     def extract_song_id(
         self,
         url_or_id: str,
@@ -155,28 +219,28 @@ class SunoScraper:
         share_match = re.search(r"/s/([a-zA-Z0-9_\-]+)", url)
         if share_match:
             share_code = share_match.group(1)
-            resolved_id = self.resolve_share_code(share_code)
+            resolved = self.resolve_share_code_new(share_code)
 
-            if resolved_id:
-                url = f"https://suno.com/song/{resolved_id}"
-
-        song_id = self.extract_song_id(url)
+            if resolved:
+                url = resolved.full_url
 
         # Make an HTTP request following redirects
+
         response = self.session.get(
             url,
             timeout=15,
             allow_redirects=True,
         )
+
         final_url = response.url
+        final_url = final_url.rstrip("/")
+
+        print("Final Url is,", final_url)
+
+        song_id = self.extract_song_id(url)
 
         # Check if it redirected to the Suno homepage (broken, private, or expired link)
-        is_home_redirect = final_url.rstrip("/") in (
-            "https://suno.com",
-            "http://suno.com",
-            "https://suno.ai",
-            "http://suno.ai",
-        )
+        is_home_redirect = final_url in settings.suno.home_urls
 
         if is_home_redirect and not song_id:
             if share_match or "/s/" in url:

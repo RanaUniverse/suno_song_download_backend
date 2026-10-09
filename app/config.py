@@ -228,6 +228,14 @@ class ExternalSettings(BaseModel):
 
 class SunoSettings(BaseModel):
     base_url: str = "https://suno.com"
+
+    home_urls: tuple[str, ...] = (
+        "https://suno.com",
+        "http://suno.com",
+        "https://suno.ai",
+        "http://suno.ai",
+    )
+
     user_agent: str = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
