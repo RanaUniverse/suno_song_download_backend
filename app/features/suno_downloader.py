@@ -160,14 +160,12 @@ class SunoScraper:
                     # after i get the content_id i will try to check if this looks
                     # like the uuid of suno if yes then say this is id
                     if content_type == "hook":
-                        print("This is hook song need differen way")
                         song_info = HookSongScraper().scrape(content_id)
-                        print("NOwwwwwwwww")
-                        print(song_info)
                         return ResolvedSunoLink(
                             type=song_info.type,
                             content_id=song_info.id,
                         )
+
                     # TODO now later i will use the logic of seaprate the beautifulsoup
 
                     if content_id and UUID_REGEX.search(str(content_id)):
