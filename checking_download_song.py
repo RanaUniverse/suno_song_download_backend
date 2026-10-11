@@ -15,15 +15,30 @@ def download_suno_song(
             audio_format="m4a",  # or "mp3" / "wav"
         )
         return result.audio_path  # 👈 Use dot notation for Pydantic models!
+
     except Exception as e:
-        print(f"\n❌ Exception details: {type(e).__name__}: {e}")
+        print(
+            f"\n❌ Exception details: {type(e).__name__}: {e}",
+        )
         traceback.print_exc()
         return None
 
 
+# Suno song links
+SHORT_SONG = "https://suno.com/s/cbDOEH5feyWw6oEF"
+LARGE_SONG = "https://suno.com/song/5dfd3531-6092-43a9-ab50-e9335c8ad39f"
+
+# Suno hook links
+SHORT_HOOK = "https://suno.com/s/T7GIvQDqjkk8bMJ2"
+LARGE_HOOK = "https://suno.com/hook/f0a5d387-4ee3-4cb8-a61a-217312ed4905"
+
+
 def main():
-    song_link = "https://suno.com/song/11e26b83-ed16-425f-824b-9500240576b4"
-    song_link = "https://suno.com/s/T7GIvQDqjkk8bMJ2"
+    # song_link=""
+    song_link = SHORT_SONG
+    song_link = LARGE_SONG
+    song_link = SHORT_HOOK
+    song_link = LARGE_HOOK
 
     print(f"Testing link: {song_link} ...")
     path = download_suno_song(song_link)
