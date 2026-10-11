@@ -51,7 +51,7 @@ from app.features.suno.models import (
 from app.shared.logger_related import RanaLogger
 from .suno.models import ResolvedSunoLink
 
-from .suno.scraper import HookSongScraper
+from .suno.scraper import HookSongScraper, AudioSongScraper
 
 DEFAULT_HEADERS = settings.suno.default_headers
 
@@ -126,6 +126,8 @@ class SunoScraper:
         share_code: str,
     ) -> ResolvedSunoLink | None:
         """
+        Here i will pass the short id to get the song info
+
         Attempts to resolve a short Suno shared link (/s/CODE) to the actual song ID.
 
         It returns the large Content ID and type of this if any
@@ -161,6 +163,7 @@ class SunoScraper:
                     # like the uuid of suno if yes then say this is id
                     if content_type == "hook":
                         song_info = HookSongScraper().scrape(content_id)
+                        print("First hook block, ", song_info)
                         return ResolvedSunoLink(
                             type=song_info.type,
                             content_id=song_info.id,
@@ -168,11 +171,19 @@ class SunoScraper:
 
                     # TODO now later i will use the logic of seaprate the beautifulsoup
 
-                    if content_id and UUID_REGEX.search(str(content_id)):
+                    elif (
+                        content_type == "song"
+                        and content_id
+                        and UUID_REGEX.search(str(content_id))
+                    ):
                         return ResolvedSunoLink(
                             content_id=content_id,
                             type=content_type,
                         )
+
+                    else:
+                        RanaLogger.warning(f"Here is somethings wrong no song no hook")
+                        return
 
             except Exception as e:
                 RanaLogger.warning(f"{e}")
@@ -185,7 +196,7 @@ class SunoScraper:
         url_or_id: str,
     ) -> str | None:
         """
-        Extracts the Suno song UUID.
+        Extracts the Suno song Large UUID.
         """
         match = UUID_REGEX.search(url_or_id)
         if match:
@@ -198,7 +209,10 @@ class SunoScraper:
     ) -> SongInfo:
         """
         This wants the large song uuid
-
+        Supports:
+        - https://suno.com/song/<UUID>
+        - https://suno.com/hook/<UUID>
+        - https://suno.com/s/<SHARE_CODE>
         Extracts metadata, image, and URLs from the Suno page.
         This Function will return the updated SongInfo BaseModel class
         """
@@ -207,22 +221,17 @@ class SunoScraper:
 
         # so this first check if the large_id is working here not url
         if not url.startswith("http"):
-            song_id = self.extract_song_id(url)
-            if song_id:
-                url = f"https://suno.com/song/{song_id}"
-            else:
-                raise ValueError(f"Invalid URL or ID: {url}")
+            raise ValueError(f"Link Must Start with HTTP Protocol")
+            # later i will want to have the allow by large_id
 
-        # If it is a short link /s/CODE, try to resolve it using the official Suno API
-        share_match = re.search(r"/s/([a-zA-Z0-9_\-]+)", url)
-        if share_match:
-            share_code = share_match.group(1)
-            resolved = self.resolve_share_code_new(share_code)
+            # song_id = self.extract_song_id(url)
+            # if song_id:
+            #     url = f"https://suno.com/song/{song_id}"
+            # else:
+            #     raise ValueError(f"Invalid URL or ID: {url}")
 
-            if resolved:
-                url = resolved.full_url
-
-        # Make an HTTP request following redirects
+        # Now i will check if there is /hook/ in the url then i will just 
+        # directly use teh hook logic
 
         response = self.session.get(
             url,
@@ -230,10 +239,53 @@ class SunoScraper:
             allow_redirects=True,
         )
 
-        final_url = response.url
-        final_url = final_url.rstrip("/")
+        final_url = (response.url).rstrip("/")
 
-        print("Final Url is,", final_url)
+
+        # If it is a short link /s/CODE, try to resolve it using the official Suno API
+        share_match = re.search(r"/s/([a-zA-Z0-9_\-]+)", url)
+        if share_match:
+            share_code = share_match.group(1)
+            resolved = self.resolve_share_code_new(
+                share_code,
+            )
+
+            if resolved and resolved.type == "hook":
+                scrap_data = HookSongScraper().scrape(
+                    resolved.content_id,
+                )
+                url = scrap_data.song_url_for_browser
+
+
+            elif resolved and resolved.type == "song":
+                url = resolved.full_url
+
+
+
+        # 1. Direct hook URL: scrape immediately.
+        hook_match = re.search(
+            r"/hook/([a-fA-F0-9-]+)(?:[/?#]|$)",
+            final_url,
+        )
+
+        if hook_match:
+            hook_id = hook_match.group(1)
+
+            if not UUID_REGEX.fullmatch(hook_id):
+                raise ValueError(f"Invalid Suno hook ID: {hook_id}")
+
+            scrap_info = HookSongScraper().scrape(hook_id)
+            url = scrap_info.song_url_for_browser
+            print("Hook song get transfering this to normal /song")
+
+
+
+        # Make an HTTP request following redirects
+        # after i will get the proper url i will say my
+        # hoook or song to make another get request
+
+
+
 
         song_id = self.extract_song_id(url)
 
@@ -258,6 +310,8 @@ class SunoScraper:
                     "https://suno.com/song/12345678-abcd-4ef0-9012-123456789abc"
                 )
 
+        # This will ensure if user first enter large url it will done before
+        # else it will use redicrtt and then use this to get the song id
         if not song_id:
             song_id = self.extract_song_id(final_url)
 
@@ -279,70 +333,78 @@ class SunoScraper:
                 "Example: https://suno.com/song/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
             )
 
-        html = response.text
-        soup = BeautifulSoup(
-            html,
-            "html.parser",
+        # Now below runs means this chekcing of the link is good with suno song
+        scrap_data = AudioSongScraper().scrape(
+            song_html_text=response.text,
+            audio_url=final_url,
+            large_id=song_id,
         )
+        return scrap_data
 
-        info = SongInfo(
-            id=song_id,
-            source_url=final_url,
-        )
+        # html = response.text
+        # soup = BeautifulSoup(
+        #     html,
+        #     "html.parser",
+        # )
 
-        # Extract Title first look at title property then twitter part
-        og_title = soup.find("meta", property="og:title") or soup.find(
-            "meta", {"name": "twitter:title"}
-        )
+        # info = SongInfo(
+        #     id=song_id,
+        #     source_url=final_url,
+        # )
 
-        content = og_title.get("content") if og_title else None
+        # # Extract Title first look at title property then twitter part
+        # og_title = soup.find("meta", property="og:title") or soup.find(
+        #     "meta", {"name": "twitter:title"}
+        # )
 
-        if isinstance(content, str):
-            title_clean = content.replace(" | Suno", "").replace(" on Suno", "").strip()
+        # content = og_title.get("content") if og_title else None
 
-            if title_clean:
-                info.title = title_clean
+        # if isinstance(content, str):
+        #     title_clean = content.replace(" | Suno", "").replace(" on Suno", "").strip()
 
-        # Extract Cover Image
-        og_image = soup.find("meta", property="og:image") or soup.find(
-            "meta", {"name": "twitter:image"}
-        )
+        #     if title_clean:
+        #         info.title = title_clean
 
-        # This will give the correct image url i checked with song & hook
-        image_content = og_image.get("content") if og_image else None
-        if isinstance(image_content, str):
-            info.image_url = image_content
+        # # Extract Cover Image
+        # og_image = soup.find("meta", property="og:image") or soup.find(
+        #     "meta", {"name": "twitter:image"}
+        # )
 
-        # Extract Description / Prompt
-        og_desc = soup.find("meta", property="og:description") or soup.find(
-            "meta", {"name": "description"}
-        )
-        description_content = og_desc.get("content") if og_desc else None
-        if isinstance(description_content, str):
-            info.prompt = description_content
+        # # This will give the correct image url i checked with song & hook
+        # image_content = og_image.get("content") if og_image else None
+        # if isinstance(image_content, str):
+        #     info.image_url = image_content
 
-        # Extract Style Tags
-        tags_match = re.search(r"\"tags\"\s*:\s*\"([^\"]+)\"", html)
-        if tags_match:
-            info.tags = tags_match.group(1)
+        # # Extract Description / Prompt
+        # og_desc = soup.find("meta", property="og:description") or soup.find(
+        #     "meta", {"name": "description"}
+        # )
+        # description_content = og_desc.get("content") if og_desc else None
+        # if isinstance(description_content, str):
+        #     info.prompt = description_content
 
-        # Search for CloudFront audio URL in the HTML
-        cf_matches = re.findall(
-            r'https?://[^\s"\'<>\\]+\.cloudfront\.net/[^\s"\'<>\\]+\.(?:m4a|mp3|wav)',
-            html,
-        )
-        if cf_matches:
-            info.audio_url = cf_matches[0]
-        elif song_id:
-            info.audio_url = (
-                f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
-            )
-            # TODO i will later thinks to change this audio_url if suno change this
+        # # Extract Style Tags
+        # tags_match = re.search(r"\"tags\"\s*:\s*\"([^\"]+)\"", html)
+        # if tags_match:
+        #     info.tags = tags_match.group(1)
 
-        if not info.image_url and song_id:
-            info.image_url = f"https://cdn2.suno.ai/image_large_{song_id}.jpeg"
+        # # Search for CloudFront audio URL in the HTML
+        # cf_matches = re.findall(
+        #     r'https?://[^\s"\'<>\\]+\.cloudfront\.net/[^\s"\'<>\\]+\.(?:m4a|mp3|wav)',
+        #     html,
+        # )
+        # if cf_matches:
+        #     info.audio_url = cf_matches[0]
+        # elif song_id:
+        #     info.audio_url = (
+        #         f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
+        #     )
+        #     # TODO i will later thinks to change this audio_url if suno change this
 
-        return info
+        # if not info.image_url and song_id:
+        #     info.image_url = f"https://cdn2.suno.ai/image_large_{song_id}.jpeg"
+
+        # return info
 
     def decrypt_and_download(
         self,
@@ -364,8 +426,11 @@ class SunoScraper:
         # 1. Get Mango license keys
         rights_url = "https://studio-api.prod.suno.com/api/mango/rights"
         payload = {"content_params": {"content_id": song_id, "content_type": "clip"}}
-        rights_res = self.session.post(rights_url, json=payload, timeout=15)
-        print("xxxxxxxxxxx", rights_res)
+        rights_res = self.session.post(
+            rights_url,
+            json=payload,
+            timeout=15,
+        )
         if rights_res.status_code != 200:
             raise Exception(
                 f"Failed to obtain Suno audio license (HTTP {rights_res.status_code})"
@@ -391,7 +456,7 @@ class SunoScraper:
         if progress_callback:
             progress_callback("Downloading", 0, 0, 25.0)
 
-        res = self.session.get(stream_url, stream=True, timeout=30)
+        res = self.session.get(stream_url, stream=True, timeout=30,)
         if res.status_code != 200:
             raise Exception(f"Error downloading audio stream (HTTP {res.status_code})")
 
@@ -691,7 +756,7 @@ class SunoScraper:
         # 2. If the complete one does not exist, download and decrypt
         # the stream to a temporary file that will be deleted upon completion
         stream_url = (
-            info.audio_url
+            info.base_audio_id
             or f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
         )
         temp_decrypted = os.path.join(
@@ -1054,12 +1119,19 @@ class SunoScraper:
         save_metadata: bool = True,
         progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
     ) -> DownloadResult:
-        """Downloads, decrypts, and saves the full song as M4A, MP3, or WAV."""
+        """
+        Downloads, decrypts, and saves the full song as M4A, MP3, or WAV.
+        """
+
         info = self.scrape_song_info(url)
-        os.makedirs(output_dir, exist_ok=True)
+
+        os.makedirs(
+            output_dir,
+            exist_ok=True,
+        )
 
         clean_title = sanitize_filename(info.title)
-        song_id = info.id or "track"
+        song_id = info.base_audio_id or "track"
         base_name = f"{clean_title} ({song_id[:8]})"
 
         fmt = audio_format.lower().strip()
@@ -1070,6 +1142,7 @@ class SunoScraper:
         # Decrypt and save audio (original M4A, MP3, or WAV)
         audio_out = os.path.join(output_dir, f"{base_name}.{ext}")
         m4a_out = os.path.join(output_dir, f"{base_name}.m4a")
+
         stream_url = (
             info.audio_url
             or f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
@@ -1085,6 +1158,8 @@ class SunoScraper:
             if progress_callback:
                 progress_callback("Completed", 1, 1, 100.0)
         else:
+            print("Song id and stram url,", song_id, stream_url)
+
             final_audio_path = self.decrypt_and_download(
                 song_id,
                 stream_url,
@@ -1117,7 +1192,7 @@ class SunoScraper:
                 f.write(f"Title: {info.title}\n")
                 f.write(f"Suno ID: {info.id}\n")
                 f.write(f"Format: {ext.upper()}\n")
-                f.write(f"Original Link: {info.source_url}\n")
+                f.write(f"Original Link: {info.audio_url}\n")
                 f.write(f"Tags / Style: {info.tags}\n")
                 dur_m = int(duration // 60)
                 dur_s = int(duration % 60)

@@ -13,6 +13,13 @@ class ClipMetadata(BaseModel):
     tags: str = ""
 
 
+class MediaURL(BaseModel):
+    url: str
+    content_type: str | None = None
+    delivery: str | None = None
+    encoding: str | None = None
+
+
 class Clip(BaseModel):
     title: str = Field(
         description="The Title in the Hook shows large upper of the creator name",
@@ -31,6 +38,10 @@ class Clip(BaseModel):
     created_time: datetime = Field(
         validation_alias=AliasChoices("created_at"),
         description="The time when this song is made is in this clip present here",
+    )
+
+    media_urls: list[MediaURL] | None = Field(
+        default=None,
     )
 
 
@@ -69,3 +80,18 @@ class HookResponse(BaseModel):
         self,
     ) -> str:
         return f"https://suno.com/song/{self.base_audio_id}"
+
+    @property
+    def source_audio_url(self) -> str | None:
+        """
+        Return the first available audio media URL.
+        
+        This return the main source audio file which i need to get
+        audio as encrypted form
+        """
+        for media in self.clip.media_urls or []:
+            if media.content_type and media.content_type.startswith("audio/"):
+                return media.url
+
+        # Suno may use a custom content type such as m4a-opus.
+        return self.clip.media_urls[0].url if self.clip.media_urls else None

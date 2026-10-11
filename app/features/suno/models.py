@@ -1,4 +1,6 @@
-"""Validated data models shared by the Suno feature."""
+"""
+Validated data models shared by the Suno feature.
+"""
 
 from typing import Literal
 
@@ -25,20 +27,40 @@ class SongInfo(BaseModel):
     title: str = "Suno AI Song"
     prompt: str | None = None
     tags: str | None = None
-    source_url: str = Field(
-        description="The final url this song will open by ",
+
+    base_audio_id: str = Field(
+        default="",
+        description=(
+            "This is the main song's id for hook this is "
+            "useful else for song the normal id is same as thsi value"
+        ),
     )
-    audio_url: str | None = None
+    audio_url: str | None = Field(
+        description="The url of encrypted audio form where i will downlaod the audio",
+    )
+
     image_url: str | None = None
     video_url: str | None = Field(
         description="This is for hook songs",
         default=None,
     )
 
+    @property
+    def song_url_for_browser(self) -> str:
+        """
+        Open in browser song url
+        URL of the original song, including when this is a hook.
+        """
+
+        song_id = self.base_audio_id or self.id
+        return f"https://suno.com/song/{song_id}"
+
 
 class ResolvedSunoLink(BaseModel):
     type: Literal["song", "hook"]
-    content_id: str
+    content_id: str = Field(
+        description="The large uuid like thing is content id",
+    )
 
     @property
     def full_url(self) -> str:
