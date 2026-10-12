@@ -116,12 +116,13 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     buttons = generate_buttons_for_attach_with_song()
     reply_markup = InlineKeyboardMarkup(buttons)
 
-    if settings.bot.start_image_file_id:
-        await message.reply_photo(
-            photo=settings.bot.start_image_file_id,
+    if settings.bot.start_video_file_id:
+        await message.reply_video(
+            video=settings.bot.start_video_file_id,
             caption=txt,
             do_quote=True,
             reply_markup=reply_markup,
+            show_caption_above_media=True,
         )
     else:
         await message.reply_text(

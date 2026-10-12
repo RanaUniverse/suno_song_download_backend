@@ -181,6 +181,10 @@ class BotSettings(BaseModel):
         "/start the file id will be here, if not given i need to setup "
         "the not sending the image",
     )
+    start_video_file_id: str | None = Field(
+        default=None,
+        description="A sample video to shows user hot to use",
+    )
     song_forward_group_id: int | None = Field(
         default=-1004300343847,
         description="if there is group id then i will forword the thigns "

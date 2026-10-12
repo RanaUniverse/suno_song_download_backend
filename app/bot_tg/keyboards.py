@@ -33,6 +33,11 @@ PAYPAL_Profile_Button = InlineKeyboardButton(
     url=PAYPAL_PROFILE_LINK,
 )
 
+Razorpay_Profile_Button = InlineKeyboardButton(
+    "Premium Stars⭐",
+    url=RAZORPAY_PROFILE_LINK,
+)
+
 
 def generate_dynamic_keyboard(
     final_url: str,
@@ -133,26 +138,7 @@ def generate_buttons_for_attach_with_song(
         )
 
     else:
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    "⭐ Free Stars",
-                    url=RAZORPAY_PROFILE_LINK,
-                )
-            ]
-        )
-
-    # Second row
-    buttons.append(
-        [
-            UPI_Profile_Button,
-        ]
-    )
-    buttons.append(
-        [
-            PAYPAL_Profile_Button,
-        ],
-    )
+        ...
 
     # Third row
     buttons.append(
