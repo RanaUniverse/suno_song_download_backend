@@ -188,6 +188,19 @@ class BotSettings(BaseModel):
     )
     help_account_username: str
 
+    default_song_format: Literal["m4a", "mp3", "wav"] = Field(
+        default="m4a",
+        description="The format of song my bot will send to user is this",
+    )
+
+    instant_song_send: bool = Field(
+        default=True,
+        description=(
+            "By this my backend will check if to download "
+            "the song instantly after a user send a link to download a song."
+        ),
+    )
+
 
 class SongSettings(BaseModel):
     duration_threshold_seconds: int = Field(
@@ -207,8 +220,6 @@ class SongSettings(BaseModel):
         default=True,
         description="Whether songs should be downloaded automatically.",
     )
-
-    auto_download_format: Literal["original", "mp3", "wav"] = "original"
 
 
 class PathSettings(BaseModel):
