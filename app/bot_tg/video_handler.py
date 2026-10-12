@@ -20,9 +20,10 @@ async def get_video_file_id(
         return
 
     video = message.video
+    caption = f"{message.caption}\n" f"FIle id is\n" f"{message.video.file_id}"  # type: ignore
 
     await message.reply_video(
         video=video.file_id,
-        caption=message.caption,
+        caption=caption,
         caption_entities=message.caption_entities,
     )

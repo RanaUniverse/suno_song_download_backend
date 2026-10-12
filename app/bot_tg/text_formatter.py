@@ -40,7 +40,8 @@ def get_welcome_message(full_name: str) -> str:
         "to the bot to start your download! 👇\n\n"
         f"{links_formatted}\n\n"
         "🔥 Join our Official Channel For Updates: @HindiDJSong\n\n"
-        "🚀 <b>SEND A SUNO LINK NOW AND LET THE MUSIC PLAY!</b> 🎧✨"
+        "🚀 <b>SEND A SUNO LINK NOW AND LET THE MUSIC PLAY!</b> 🎧✨\n"
+        "<b>Watch This Video Below For More Information 👇👇👇</b>"
     )
 
     return startup_message
