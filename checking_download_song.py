@@ -6,11 +6,17 @@ def download_suno_song(
     song_link: str,
     output_dir: str = "downloads",
 ) -> str | None:
+    """
+    This is a checking Module to check if we can download
+    the songs or not
+    """
+
     scraper = SunoScraper()
 
     try:
+        song_info = scraper.scrape_song_info(song_link)
         result = scraper.download_song(
-            song_link,
+            song_info,
             output_dir=output_dir,
             audio_format="m4a",  # or "mp3" / "wav"
         )
@@ -37,8 +43,9 @@ def main():
     # song_link=""
     song_link = SHORT_SONG
     song_link = LARGE_SONG
-    song_link = SHORT_HOOK
-    song_link = LARGE_HOOK
+    # song_link = SHORT_HOOK
+    # song_link = LARGE_HOOK
+    song_link = "https://suno.com/song/3ec8c300-a86e-4775-a995-ca65f7afd964"
 
     print(f"Testing link: {song_link} ...")
     path = download_suno_song(song_link)

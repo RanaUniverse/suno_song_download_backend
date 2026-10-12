@@ -6,13 +6,19 @@ then use htis in different places
 """
 
 from dataclasses import dataclass
+
 import re
 import json
 
 
 import requests
 
+
 from app.config import settings
+
+from app.features.suno.models import SongInfo
+
+#
 
 
 @dataclass
@@ -87,6 +93,7 @@ def fetch_suno_song_data_advanced(
     This i think to use to shows the song information to the user
     on bot page after my python will loads the song data
     """
+    print("FETCHing has started")
     song_id = ""
     title = ""
     artist = ""
@@ -112,8 +119,8 @@ def fetch_suno_song_data_advanced(
         resp = requests.get(
             target_song_url,
             headers=headers,
-            allow_redirects=True,
             timeout=5,
+            allow_redirects=True,
         )
 
         if resp.status_code == 200:
@@ -203,7 +210,7 @@ def fetch_suno_song_data_advanced(
 
 
 def calculate_song_cost(
-    song_data: SunoSongFrontendData,
+    song_info: SongInfo,
 ) -> int | None:
     """
     Determines how many Stars it will cost to later donwload this song
@@ -212,13 +219,13 @@ def calculate_song_cost(
     all song are free of cost :haha
     """
 
-    if song_data.duration_in_seconds is None:
+    if song_info.duration_in_seconds is None:
         return settings.song.long_cost
 
     if settings.song.duration_threshold_seconds == 0:
         return None
 
-    if song_data.duration_in_seconds <= settings.song.duration_threshold_seconds:
+    if song_info.duration_in_seconds <= settings.song.duration_threshold_seconds:
         return settings.song.short_cost
     else:
         return settings.song.long_cost

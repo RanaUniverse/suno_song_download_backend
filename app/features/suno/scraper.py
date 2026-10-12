@@ -3,6 +3,7 @@ app/features/suno/scraper.py
 
 """
 
+import json
 import re
 import requests
 
@@ -16,7 +17,27 @@ from .models_hook import HookResponse
 
 from app.constants import UUID_REGEX
 
+#
+
+
 headers = settings.suno.share_api_headers
+
+
+def collect_payload(html: str):
+    """
+    Replicates the JavaScript collectPayload function to grab Next.js flight chunks.
+    """
+    pattern = r'self\.__next_f\.push\(\[\s*1\s*,\s*"((?:\\.|[^"\\])*)"\s*\]\)'
+    matches = re.findall(pattern, html)
+    out = ""
+    for m in matches:
+        try:
+            # Safely unescape the string literal
+            decoded = json.loads(f'"{m}"')
+            out += decoded
+        except Exception:
+            out += m.replace(r"\"", '"').replace(r"\\", "\\").replace(r"\n", "\n")
+    return out
 
 
 class AudioSongScraper:
@@ -70,11 +91,12 @@ class AudioSongScraper:
         og_title = soup.find("meta", property="og:title") or soup.find(
             "meta", {"name": "twitter:title"}
         )
+        print(og_title)
 
         content = og_title.get("content") if og_title else None
 
         if isinstance(content, str):
-            title_clean = content.replace(" | Suno", "").replace(" on Suno", "").strip()
+            title_clean = content
 
             if title_clean:
                 info.title = title_clean
@@ -84,25 +106,26 @@ class AudioSongScraper:
             "meta", {"name": "twitter:image"}
         )
 
-        # This will give the correct image url i checked with song & hook
         image_content = og_image.get("content") if og_image else None
         if isinstance(image_content, str):
             info.image_url = image_content
 
+        # TODO i will add prompt later
         # Extract Description / Prompt
-        og_desc = soup.find("meta", property="og:description") or soup.find(
-            "meta", {"name": "description"}
-        )
-        description_content = og_desc.get("content") if og_desc else None
-        if isinstance(description_content, str):
-            info.prompt = description_content
+        # og_desc = soup.find("meta", property="og:description") or soup.find(
+        #     "meta", {"name": "description"}
+        # )
+        # description_content = og_desc.get("content") if og_desc else None
+        # if isinstance(description_content, str):
+        #     info.prompt = description_content
 
         # Extract Style Tags
-        tags_match = re.search(r"\"tags\"\s*:\s*\"([^\"]+)\"", html)
-        if tags_match:
-            info.tags = tags_match.group(1)
+        tags_match = re.search(r'\\"tags\\":\\"(.*?)\\"', html)
 
-        # Search for CloudFront audio URL in the HTML
+        if tags_match:
+            info.tags = tags_match.group(1).replace('\\"', '"').replace("\\\\", "\\")
+
+        # Search for CloudFront audio URL in the HTML source url to download
         cf_matches = re.findall(
             r'https?://[^\s"\'<>\\]+\.cloudfront\.net/[^\s"\'<>\\]+\.(?:m4a|mp3|wav)',
             html,
@@ -118,6 +141,42 @@ class AudioSongScraper:
 
         if not info.image_url and info.id:
             info.image_url = f"https://cdn2.suno.ai/image_large_{info.id}.jpeg"
+
+        payload = collect_payload(html)
+
+        # 4. Extract Username Handle (e.g. "tkahmad")
+        handle_match = re.search(r'"handle"\s*:\s*"([^"]+)"', payload)
+        if handle_match:
+            artist_username = handle_match.group(1)
+            info.artist_username = artist_username
+
+        # 4. Extract Duration (Seconds and formatted MM:SS)
+        dur_match = re.search(r'"duration"\s*:\s*([0-9.]+)', payload)
+        if dur_match:
+            secs = float(dur_match.group(1))
+            duration_secs = round(secs)
+            mins = int(duration_secs // 60)
+            rem = int(duration_secs % 60)
+            duration_str = f"{mins}:{rem:02d}"
+            info.duration_in_seconds = duration_secs
+            info.duration = duration_str
+
+        # 5. Extract Created Date (YYYY-MM-DD)
+        date_match = re.search(r'"created_at"\s*:\s*"([^"]+)"', payload)
+        if date_match:
+            created_date = date_match.group(1)[:10]
+            info.created_date = created_date
+
+        # 6. Extract Plays & Likes
+        plays_match = re.search(r'"play_count"\s*:\s*(\d+)', payload)
+        if plays_match:
+            plays_count = int(plays_match.group(1))
+            info.plays = plays_count
+
+        likes_match = re.search(r'"upvote_count"\s*:\s*(\d+)', payload)
+        if likes_match:
+            likes_count = int(likes_match.group(1))
+            info.likes = likes_count
 
         return info
 

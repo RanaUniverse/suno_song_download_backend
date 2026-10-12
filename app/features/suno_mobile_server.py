@@ -187,8 +187,15 @@ async def api_download(req: DownloadRequest, background_tasks: BackgroundTasks):
 
         fmt = (req.format or "mp3").lower().strip()
         if fmt not in {"m4a", "mp3", "wav"}:
-            raise HTTPException(status_code=400, detail="Format must be m4a, mp3, or wav")
-        res = scraper.download_song(url, output_dir=DOWNLOADS_DIR, audio_format=fmt)
+            raise HTTPException(
+                status_code=400, detail="Format must be m4a, mp3, or wav"
+            )
+        info = scraper.scrape_song_info(url)
+        res = scraper.download_song(
+            info,
+            output_dir=DOWNLOADS_DIR,
+            audio_format=fmt,
+        )
         info = res.info
         audio_file = os.path.basename(res.audio_path)
         duration = res.duration
@@ -254,7 +261,14 @@ async def api_separate_stems(req: SeparateRequest, background_tasks: BackgroundT
             )
 
         fmt = (
-            (req.format or ("wav" if filename.lower().endswith(".wav") else "m4a" if filename.lower().endswith(".m4a") else "mp3"))
+            (
+                req.format
+                or (
+                    "wav"
+                    if filename.lower().endswith(".wav")
+                    else "m4a" if filename.lower().endswith(".m4a") else "mp3"
+                )
+            )
             .lower()
             .strip()
         )

@@ -12,7 +12,7 @@ from pathlib import Path
 from telegram import (
     Update,
     MessageEntity,
-    LinkPreviewOptions,
+    # LinkPreviewOptions,
     InlineKeyboardMarkup,
 )
 from telegram.constants import (
@@ -32,9 +32,9 @@ from app.shared.logger_related import RanaLogger
 
 from .utils import extract_valid_song_link_from_message_entities
 
-
+from app.features.suno_downloader import SunoScraper
+from app.features.suno.models import SongInfo
 from app.shared.song_info import (
-    fetch_suno_song_data_advanced,
     calculate_song_cost,
 )
 
@@ -42,10 +42,8 @@ from .text_formatter import (
     generate_successful_song_caption,
     generate_non_suno_link_received_text,
     generate_wrong_suno_link_received_text,
-    generate_suno_link_received_confirmation_message,
     generate_no_link_received_text,
     generate_song_details_only,
-    # generate_wrong_link_received_caption,
 )
 
 from .keyboards import (
@@ -56,16 +54,9 @@ from .keyboards import (
 from .config import StickerFileId
 
 
-from app.shared.song_info import SunoSongFrontendData
-
 from app.config import settings
 
 from app.features.suno.service import download_suno_song
-
-# from app.utils import generate_direct_song_download_url
-# from app.features.browser.song_download import download_song_in_playwright
-# from app.features.browser.open_pages import get_screenshot
-# from .download_file import download_image_to_memory
 
 # #
 
@@ -116,11 +107,14 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
     user = update.effective_user
 
     if not message or not chat or not user:
-        RanaLogger.warning("Message & Chat should present when in text")
+        RanaLogger.warning(
+            "Message & Chat should present when in text",
+        )
         return
 
     # https://docs.python-telegram-bot.org/en/stable/telegram.message.html#telegram.Message.parse_entities
     urls_dict = message.parse_entities(types=[MessageEntity.URL])
+
     print(f"Printing the URLS LIST {urls_dict}")
 
     if not urls_dict:
@@ -142,109 +136,45 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
             wrong_url=final_song_url,
         )
         await message.reply_text(txt)
+        return
 
-        # await message.reply_chat_action(
-        #     action=ChatAction.UPLOAD_PHOTO,
-        # )
-        # screenshot = await get_screenshot(
-        #     url=final_song_url,
-        # )
-        # if screenshot is not None:
-
-        #     caption = generate_wrong_link_received_caption(
-        #         wrong_url=final_song_url,
-        #     )
-
-        #     await message.reply_photo(
-        #         photo=screenshot,
-        #         caption=caption,
-        #         do_quote=True,
-        #     )
-        # else:
-        #     RanaLogger.warning("Screenhot sending fails")
-
-        # return
-
-    # Below comes to executes means the url is of suno but i not
-    # know if this is of song or channel or another
-
-    txt = generate_suno_link_received_confirmation_message(
-        url=final_song_url,
-    )
-
-    wait_message = await message.reply_text(
-        text=txt,
-        do_quote=True,
-        link_preview_options=LinkPreviewOptions(
-            is_disabled=True,
-        ),
+    fetch_task = asyncio.create_task(
+        asyncio.to_thread(
+            SunoScraper().scrape_song_info,
+            final_song_url,
+        )
     )
 
     lightning_sticker = await message.reply_sticker(
         StickerFileId.LIGHTNING,
     )
 
-    await message.reply_chat_action(
-        action=ChatAction.UPLOAD_PHOTO,
-    )
+    # await message.reply_chat_action(
+    #     action=ChatAction.UPLOAD_PHOTO,
+    # )
+    try:
+        song_data: SongInfo = await fetch_task
+        print("I GET SONG INFOOOOO", song_data)
 
-    song_data = await asyncio.to_thread(
-        fetch_suno_song_data_advanced,
-        final_song_url,
-    )
+    except Exception as e:
+        RanaLogger.error(f"Error scraping song: {e}")
+        await lightning_sticker.delete()
+        await message.reply_text(
+            f"Timeout To Get The song\n" + generate_wrong_suno_link_received_text(),
+            do_quote=True,
+        )
+        return
 
     RanaLogger.info(
         f"Basic Song Data Requested by, {chat.id}:-> {song_data}",
     )
 
-    # from html import escape
-    # song_title = escape(song_data.title)
-    # song_id = escape(song_data.id)
-
-    # Below condition is when the suno dont recognize the music
-    # that's why they send sometime random id on 404 response
-    clean_title = song_data.title.strip().lower()
-    if clean_title == "suno | ai music generator" or "join me on suno" in clean_title:
-
-        RanaLogger.info(
-            f"Suno Link But No Suno Song By user: {chat.id}, :-> {final_song_url}"
-        )
-
-        text = generate_wrong_suno_link_received_text()
-
-        await message.reply_text(
-            text=text,
-            do_quote=True,
-            link_preview_options=LinkPreviewOptions(
-                is_disabled=True,
-            ),
-        )
-
-        # screenshot = await get_screenshot(
-        #     url=final_song_url,
-        # )
-        # if screenshot is not None:
-
-        #     caption = generate_wrong_link_received_caption(
-        #         final_song_url,
-        #     )
-
-        #     await message.reply_photo(
-        #         photo=screenshot,
-        #         caption=caption,
-        #         do_quote=True,
-        #     )
-
-        # return
-
-    # This lines cames to executes means the song url is valid
-    # later i need to add logic to calculate and spend star cost
     star_cost = calculate_song_cost(
-        song_data=song_data,
+        song_info=song_data,
     )
 
     caption = generate_successful_song_caption(
-        song_data=song_data,
+        song_info=song_data,
         star_cost=star_cost,
     )
 
@@ -255,7 +185,8 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
         buttons = generate_dynamic_keyboard(final_song_url)
         print("Song image will send now")
         song_info_photo = await message.reply_photo(
-            photo=song_data.image_url,
+            photo=song_data.image_url or "",
+            # TODO i need to htink how to handle image if not
             caption=caption,
             do_quote=True,
             reply_markup=InlineKeyboardMarkup(buttons),
@@ -267,25 +198,10 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         await lightning_sticker.delete()
 
-        await wait_message.delete()
-
-        # Now i will start the download song work here
-
-        # downloadable_song_url = generate_direct_song_download_url(
-        #     song_url=final_song_url,
-        #     song_type=settings.song.auto_download_format,
-        # )
-
-        # song_path_after_download = await download_song_in_playwright(
-        #     link=downloadable_song_url,
-        # )
-
         song_path_after_download = await asyncio.to_thread(
             download_suno_song,
-            final_song_url,
+            song_data,
         )
-
-        print(f"Song of link {final_song_url} is done in:->", song_path_after_download)
 
         uploading_sticker = await message.reply_sticker(
             StickerFileId.UPLOADING_CLOUD,
@@ -322,7 +238,7 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
                         f"😊 <b>Send more song links to download!</b> 🎶"
                     )
                     buttons = generate_buttons_for_attach_with_song(
-                        song_url=song_data.song_url_by_id,
+                        song_url=song_data.song_url_for_browser,
                     )
                     audio_after_send = await message.reply_audio(
                         audio=file,
@@ -395,7 +311,7 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
 async def forward_song_to_channel(
     context: ContextTypes.DEFAULT_TYPE,
     audio_file_id: str,
-    song_data: SunoSongFrontendData,
+    song_data: SongInfo,
     user_name: str,
 ) -> bool:
     """

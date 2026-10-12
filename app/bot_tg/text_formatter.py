@@ -7,10 +7,12 @@ This will format the text there which will use to send to users
 
 from html import escape
 
-from app.shared.song_info import SunoSongFrontendData
-from app.shared.utils import get_random_demo_songs_links
 
 from app.config import settings
+from app.features.suno.models import SongInfo
+from app.shared.utils import get_random_demo_songs_links
+
+#
 
 SUNO_TARGET_DOMAIN = settings.external.suno_target_domain
 
@@ -119,7 +121,7 @@ def get_telegram_verification_failed_message() -> str:
 
 
 def generate_successful_song_caption(
-    song_data: SunoSongFrontendData,
+    song_info: SongInfo,
     star_cost: int | None = None,
 ) -> str:
     """
@@ -127,15 +129,18 @@ def generate_successful_song_caption(
     Here this will generate and shows to the user
     """
     song_details_text = generate_song_details_only(
-        song_data=song_data,
+        song_data=song_info,
     )
 
     if star_cost:
         if settings.song.cost_applicable:
-            cost_txt = f"\n💳 <b>Cost:</b> <b>{star_cost} Stars ⭐</b>"
+            cost_txt = (
+                f"━━━━━━━━━━━━━━━━━━\n" f"💳 <b>Cost:</b> <b>{star_cost} Stars ⭐</b>"
+            )
 
         else:
             cost_txt = (
+                f"━━━━━━━━━━━━━━━━━━\n"
                 f"\n💳 <b>{star_cost} Stars ⭐</b>\n"
                 f"(🎁 <b>Limited Offer: 🆓 FREE DOWNLOAD!</b>)"
             )
@@ -144,18 +149,14 @@ def generate_successful_song_caption(
         cost_txt = ""
 
     caption = (
-        "🎵 <b>Song Details 👇👇👇</b>\n\n"
-        f"{song_details_text}"
-        f"━━━━━━━━━━━━━━━━━━\n"
-        f"✨ <b>Your song is Downloading Soon!!!</b>\n"
-        f"{cost_txt}"
+        "🎵 <b>Song Details 👇👇👇</b>\n\n" f"{song_details_text}" f"\n" f"{cost_txt}"
     )
 
     return caption
 
 
 def generate_song_details_only(
-    song_data: SunoSongFrontendData,
+    song_data: SongInfo,
 ):
 
     song_title = escape(song_data.title)
@@ -175,15 +176,13 @@ def generate_song_details_only(
     likes_text = f"{song_data.likes:,}" if song_data.likes is not None else "N/A"
 
     song_details = (
-        f"🎧 <b>Title:</b> <a href='{song_data.song_url_by_id}'><b>{song_title}</b></a>\n"
+        f"🎧 <b>Title:</b> <a href='{song_data.song_url_for_browser}'><b>{song_title}</b></a>\n"
         f"🎤 <b>Artist:</b> {artist_display}\n"
         f"⏱️ <b>Duration:</b> <code>{duration_text}</code>\n"
         f"📅 <b>Released:</b> <code>{created_text}</code>\n"
         f"👀 <b>Plays:</b> <code>{plays_text}</code>"
         f" | "
-        f"❤️ <b>Likes:</b> <code>{likes_text}</code>\n"
-        # f"🆔 <b>Song ID:</b>\n"
-        # f"<code>{song_id}</code>\n"
+        f"❤️ <b>Likes:</b> <code>{likes_text}</code>"
     )
 
     return song_details

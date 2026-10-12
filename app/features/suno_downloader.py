@@ -209,6 +209,7 @@ class SunoScraper:
     ) -> SongInfo:
         """
         This wants the large song uuid
+
         Supports:
         - https://suno.com/song/<UUID>
         - https://suno.com/hook/<UUID>
@@ -230,7 +231,7 @@ class SunoScraper:
             # else:
             #     raise ValueError(f"Invalid URL or ID: {url}")
 
-        # Now i will check if there is /hook/ in the url then i will just 
+        # Now i will check if there is /hook/ in the url then i will just
         # directly use teh hook logic
 
         response = self.session.get(
@@ -240,7 +241,6 @@ class SunoScraper:
         )
 
         final_url = (response.url).rstrip("/")
-
 
         # If it is a short link /s/CODE, try to resolve it using the official Suno API
         share_match = re.search(r"/s/([a-zA-Z0-9_\-]+)", url)
@@ -256,11 +256,8 @@ class SunoScraper:
                 )
                 url = scrap_data.song_url_for_browser
 
-
             elif resolved and resolved.type == "song":
                 url = resolved.full_url
-
-
 
         # 1. Direct hook URL: scrape immediately.
         hook_match = re.search(
@@ -278,14 +275,9 @@ class SunoScraper:
             url = scrap_info.song_url_for_browser
             print("Hook song get transfering this to normal /song")
 
-
-
         # Make an HTTP request following redirects
         # after i will get the proper url i will say my
         # hoook or song to make another get request
-
-
-
 
         song_id = self.extract_song_id(url)
 
@@ -456,7 +448,11 @@ class SunoScraper:
         if progress_callback:
             progress_callback("Downloading", 0, 0, 25.0)
 
-        res = self.session.get(stream_url, stream=True, timeout=30,)
+        res = self.session.get(
+            stream_url,
+            stream=True,
+            timeout=30,
+        )
         if res.status_code != 200:
             raise Exception(f"Error downloading audio stream (HTTP {res.status_code})")
 
@@ -1111,7 +1107,8 @@ class SunoScraper:
 
     def download_song(
         self,
-        url: str,
+        info: SongInfo,
+        # url: str,
         output_dir: str = "downloads",
         audio_format: str = "mp3",
         keep_m4a: bool = False,
@@ -1120,10 +1117,16 @@ class SunoScraper:
         progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
     ) -> DownloadResult:
         """
+        First i will call a external get req and get the SongInfo obj
+        And then i will use this to pass here in this method.
+
         Downloads, decrypts, and saves the full song as M4A, MP3, or WAV.
         """
 
-        info = self.scrape_song_info(url)
+        # info = self.scrape_song_info(url)
+        info = info
+
+        print("INFO INFO INFO", info)
 
         os.makedirs(
             output_dir,
@@ -1317,8 +1320,9 @@ def launch_cli():
         print(
             f"\n🎵 Connecting and decrypting Suno song ({args.format.upper()}): {args.url}"
         )
+        info = scraper.scrape_song_info(args.url)
         res = scraper.download_song(
-            args.url,
+            info,
             output_dir=args.output,
             audio_format=args.format,
             keep_m4a=args.keep_m4a,
@@ -2011,8 +2015,9 @@ def launch_gui():
                         status_var.set(f"Processing: {stage}...")
 
                 chosen_fmt = var_format.get()
+                info = scraper.scrape_song_info(url)
                 res = scraper.download_song(
-                    url,
+                    info,
                     output_dir=selected_dir_var.get(),
                     audio_format=chosen_fmt,
                     save_cover=var_cover.get(),
