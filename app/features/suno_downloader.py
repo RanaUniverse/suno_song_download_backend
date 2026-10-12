@@ -333,71 +333,6 @@ class SunoScraper:
         )
         return scrap_data
 
-        # html = response.text
-        # soup = BeautifulSoup(
-        #     html,
-        #     "html.parser",
-        # )
-
-        # info = SongInfo(
-        #     id=song_id,
-        #     source_url=final_url,
-        # )
-
-        # # Extract Title first look at title property then twitter part
-        # og_title = soup.find("meta", property="og:title") or soup.find(
-        #     "meta", {"name": "twitter:title"}
-        # )
-
-        # content = og_title.get("content") if og_title else None
-
-        # if isinstance(content, str):
-        #     title_clean = content.replace(" | Suno", "").replace(" on Suno", "").strip()
-
-        #     if title_clean:
-        #         info.title = title_clean
-
-        # # Extract Cover Image
-        # og_image = soup.find("meta", property="og:image") or soup.find(
-        #     "meta", {"name": "twitter:image"}
-        # )
-
-        # # This will give the correct image url i checked with song & hook
-        # image_content = og_image.get("content") if og_image else None
-        # if isinstance(image_content, str):
-        #     info.image_url = image_content
-
-        # # Extract Description / Prompt
-        # og_desc = soup.find("meta", property="og:description") or soup.find(
-        #     "meta", {"name": "description"}
-        # )
-        # description_content = og_desc.get("content") if og_desc else None
-        # if isinstance(description_content, str):
-        #     info.prompt = description_content
-
-        # # Extract Style Tags
-        # tags_match = re.search(r"\"tags\"\s*:\s*\"([^\"]+)\"", html)
-        # if tags_match:
-        #     info.tags = tags_match.group(1)
-
-        # # Search for CloudFront audio URL in the HTML
-        # cf_matches = re.findall(
-        #     r'https?://[^\s"\'<>\\]+\.cloudfront\.net/[^\s"\'<>\\]+\.(?:m4a|mp3|wav)',
-        #     html,
-        # )
-        # if cf_matches:
-        #     info.audio_url = cf_matches[0]
-        # elif song_id:
-        #     info.audio_url = (
-        #         f"https://d2lwuy8qc234o3.cloudfront.net/1/clip/{song_id}.m4a"
-        #     )
-        #     # TODO i will later thinks to change this audio_url if suno change this
-
-        # if not info.image_url and song_id:
-        #     info.image_url = f"https://cdn2.suno.ai/image_large_{song_id}.jpeg"
-
-        # return info
-
     def decrypt_and_download(
         self,
         song_id: str,
@@ -1126,7 +1061,13 @@ class SunoScraper:
         # info = self.scrape_song_info(url)
         info = info
 
-        print("INFO INFO INFO", info)
+        print(
+            "INFO INFO INFO",
+            info.model_dump_json(
+                indent=2,
+                exclude={"prompt", "tags"},
+            ),
+        )
 
         os.makedirs(
             output_dir,

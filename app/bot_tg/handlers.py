@@ -154,7 +154,6 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
     # )
     try:
         song_data: SongInfo = await fetch_task
-        print("I GET SONG INFOOOOO", song_data)
 
     except Exception as e:
         RanaLogger.error(f"Error scraping song: {e}")
@@ -183,7 +182,6 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
     try:
         buttons = generate_dynamic_keyboard(final_song_url)
-        print("Song image will send now")
         song_info_photo = await message.reply_photo(
             photo=song_data.image_url or "",
             # TODO i need to htink how to handle image if not
@@ -191,7 +189,6 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
             do_quote=True,
             reply_markup=InlineKeyboardMarkup(buttons),
         )
-        print("Song has been goodly image will send now")
 
         loading_sticker = await message.reply_sticker(
             StickerFileId.LOADING_ROUNDED,

@@ -70,4 +70,3 @@ async def photo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # photo="/home/rana/Pictures/linux_logo.png",
         photo="https://avatars.githubusercontent.com/u/142967497?v=4",
     )
-    print(b)
