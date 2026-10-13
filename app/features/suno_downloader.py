@@ -86,40 +86,6 @@ class SunoScraper:
         self.session.headers.update(DEFAULT_HEADERS)
         self.ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
 
-    def resolve_share_code(
-        self,
-        share_code: str,
-    ) -> str | None:
-        """
-        Attempts to resolve a short Suno shared link (/s/CODE) to the actual song ID.
-
-        It returns the large Content ID if any
-        """
-        endpoints = [
-            f"https://studio-api.prod.suno.com/api/share/code/{share_code}",
-            f"https://studio-api-prod.suno.com/api/share/code/{share_code}",
-        ]
-
-        headers = settings.suno.share_api_headers
-
-        for ep in endpoints:
-            try:
-                res = self.session.get(ep, headers=headers, timeout=8)
-                if res.status_code == 200:
-                    data = res.json()
-                    cid = (
-                        data.get("content_id") or data.get("clip_id") or data.get("id")
-                    )
-                    # after i get the content_id i will try to check if this looks
-                    # like the uuid of suno if yes then say this is id
-                    if cid and UUID_REGEX.search(str(cid)):
-                        return str(cid)
-
-            except Exception as e:
-                RanaLogger.warning(f"{e}")
-                pass
-
-        return None
 
     def resolve_share_code_new(
         self,
@@ -163,7 +129,6 @@ class SunoScraper:
                     # like the uuid of suno if yes then say this is id
                     if content_type == "hook":
                         song_info = HookSongScraper().scrape(content_id)
-                        print("First hook block, ", song_info)
                         return ResolvedSunoLink(
                             type=song_info.type,
                             content_id=song_info.id,
