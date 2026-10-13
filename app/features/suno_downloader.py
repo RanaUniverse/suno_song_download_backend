@@ -52,6 +52,7 @@ from app.shared.logger_related import RanaLogger
 from .suno.models import ResolvedSunoLink
 
 from .suno.scraper import HookSongScraper, AudioSongScraper
+from .suno.storage import get_base_name, download_cover_image
 
 DEFAULT_HEADERS = settings.suno.default_headers
 
@@ -71,21 +72,11 @@ configure_output(sys.stdout)
 configure_output(sys.stderr)
 
 
-def sanitize_filename(name: str) -> str:
-    """
-    Cleans unauthorized characters in file names.
-    """
-    clean = re.sub(r'[\\/*?:"<>|]', "", name)
-    clean = clean.strip().replace("\n", " ").replace("\r", "")
-    return clean[:90] if clean else "suno_song"
-
-
 class SunoScraper:
     def __init__(self, session: Optional[requests.Session] = None):
         self.session = session or requests.Session()
         self.session.headers.update(DEFAULT_HEADERS)
         self.ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-
 
     def resolve_share_code_new(
         self,
@@ -597,9 +588,7 @@ class SunoScraper:
         info = self.scrape_song_info(url)
         os.makedirs(output_dir, exist_ok=True)
 
-        clean_title = sanitize_filename(info.title)
-        song_id = info.id or "track"
-        base_name = f"{clean_title} ({song_id[:8]})"
+        base_name = get_base_name(info)
 
         fmt = audio_format.lower().strip()
         if fmt not in {"m4a", "mp3", "wav"}:
@@ -631,12 +620,17 @@ class SunoScraper:
                 duration_sec=dur_calc,
                 apply_fade=apply_fade,
             )
+
             cover_path = None
-            if save_cover and info.image_url:
-                cover_ext = ".jpeg" if ".jpeg" in info.image_url else ".png"
-                cover_path = os.path.join(output_dir, f"{base_name}{cover_ext}")
-                if not os.path.exists(cover_path):
-                    self.download_cover(info.image_url, cover_path)
+            if save_cover:
+                im_path = download_cover_image(
+                    info=info,
+                    destination_folder=output_dir,
+                )
+                if im_path:
+                    print(f"Image has saved into for Sample direct the {im_path}")
+                    cover_path = im_path
+
             return SampleDownloadResult(
                 info=info,
                 sample_path=sample.sample_path,
@@ -821,11 +815,16 @@ class SunoScraper:
             )
 
             cover_path = None
-            if save_cover and info.image_url:
-                cover_ext = ".jpeg" if ".jpeg" in info.image_url else ".png"
-                c_path = os.path.join(output_dir, f"{base_name}{cover_ext}")
-                if self.download_cover(info.image_url, c_path):
-                    cover_path = c_path
+            if save_cover:
+                im_path = download_cover_image(
+                    info=info,
+                    destination_folder=output_dir,
+                )
+                if im_path:
+                    print(
+                        f"Image has saved into for download Sample direct the {im_path}"
+                    )
+                    cover_path = im_path
 
             if progress_callback:
                 progress_callback("Completed", downloaded, total_size, 100.0)
@@ -987,24 +986,6 @@ class SunoScraper:
             format=fmt,
         )
 
-    def download_cover(
-        self,
-        url: str,
-        destination_path: str,
-    ):
-        """
-        Downloads the cover art.
-        """
-        try:
-            res = self.session.get(url, timeout=15)
-            if res.status_code == 200:
-                with open(destination_path, "wb") as f:
-                    f.write(res.content)
-                return True
-        except Exception:
-            pass
-        return False
-
     def download_song(
         self,
         info: SongInfo,
@@ -1025,6 +1006,7 @@ class SunoScraper:
 
         # info = self.scrape_song_info(url)
         info = info
+        song_id = info.base_audio_id
 
         print(
             "INFO INFO INFO",
@@ -1039,9 +1021,7 @@ class SunoScraper:
             exist_ok=True,
         )
 
-        clean_title = sanitize_filename(info.title)
-        song_id = info.base_audio_id or "track"
-        base_name = f"{clean_title} ({song_id[:8]})"
+        base_name = get_base_name(info)
 
         fmt = audio_format.lower().strip()
         if fmt not in {"m4a", "mp3", "wav"}:
@@ -1082,13 +1062,13 @@ class SunoScraper:
 
         # Save Cover Art
         cover_path = None
-        if save_cover and info.image_url:
-            cover_ext = ".jpeg" if ".jpeg" in info.image_url else ".png"
-            cover_path = os.path.join(output_dir, f"{base_name}{cover_ext}")
-            if self.download_cover(
-                info.image_url,
-                cover_path,
-            ):
+        if save_cover:
+            im = download_cover_image(
+                info=info,
+                destination_folder=output_dir,
+            )
+            if im:
+                print(f"Image has saved into the {im}")
                 pass
             else:
                 cover_path = None
