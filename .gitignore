@@ -16,3 +16,6 @@ titanic.csv
 typescript/
 
 .venv/
+
+# All this below is for testing some logics in my repo
+z*.py

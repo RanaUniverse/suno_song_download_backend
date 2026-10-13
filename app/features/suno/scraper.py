@@ -150,6 +150,25 @@ class AudioSongScraper:
             artist_username = handle_match.group(1)
             info.artist_username = artist_username
 
+
+        # now i will get the artist name here
+        # Extract artist name and username from page description
+        
+        description_tag = soup.find("meta", attrs={"name": "description"})
+        description = description_tag.get("content", "") if description_tag else ""
+
+        artist_match = re.search(
+            r"\sby\s(.+?)\s+\(@([^)]+)\)",
+            description,
+        )
+
+        if artist_match:
+            info.artist_name = artist_match.group(1).strip()
+            info.artist_username = artist_match.group(2).strip()
+            
+            
+            
+
         # 4. Extract Duration (Seconds and formatted MM:SS)
         dur_match = re.search(r'"duration"\s*:\s*([0-9.]+)', payload)
         if dur_match:
