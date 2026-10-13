@@ -2,12 +2,19 @@
 Validated data models shared by the Suno feature.
 """
 
+from dataclasses import dataclass
 from typing import Literal
 
 
 from pydantic import BaseModel, Field
 
 #
+
+
+@dataclass(frozen=True, slots=True)
+class ArtistInfo:
+    name: str
+    username: str
 
 
 class SongInfo(BaseModel):

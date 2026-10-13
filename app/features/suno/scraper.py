@@ -8,6 +8,7 @@ import re
 import requests
 
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 from app.features.suno.models import SongInfo
 
 
@@ -16,11 +17,46 @@ from app.config import settings
 from .models_hook import HookResponse
 
 from app.constants import UUID_REGEX
+from .models import ArtistInfo
 
 #
 
 
 headers = settings.suno.share_api_headers
+
+
+def extract_artist_info(
+    # description: str,
+    description_tag: Tag | None = None,
+) -> ArtistInfo | None:
+    """
+    This will extract the information from the description like this,
+
+    This content part is coming here as description
+    <meta
+    name="description"
+    content="दिल मेरा नाचे by Rana Universe (@ranauniverse). Listen and make your own on Suno."
+    />
+    """
+    if description_tag is None:
+        return None
+
+    description = description_tag.get("content", "")
+
+    if isinstance(description, str):
+        match = re.search(
+            r"\bby\s+(.+?)\s+\(@([^)]+)\)",
+            description,
+            re.IGNORECASE,
+        )
+
+        if not match:
+            return None
+
+        return ArtistInfo(
+            name=match.group(1).strip(),
+            username=match.group(2).strip(),
+        )
 
 
 def collect_payload(html: str):
@@ -142,32 +178,17 @@ class AudioSongScraper:
         if not info.image_url and info.id:
             info.image_url = f"https://cdn2.suno.ai/image_large_{info.id}.jpeg"
 
+        description_tag = soup.find("meta", attrs={"name": "description"})
+        artist_info = extract_artist_info(description_tag)
+
+        if artist_info:
+            info.artist = artist_info.name
+            info.artist_username = artist_info.username
+
         payload = collect_payload(html)
-
-        # 4. Extract Username Handle (e.g. "tkahmad")
-        handle_match = re.search(r'"handle"\s*:\s*"([^"]+)"', payload)
-        if handle_match:
-            artist_username = handle_match.group(1)
-            info.artist_username = artist_username
-
 
         # now i will get the artist name here
         # Extract artist name and username from page description
-        
-        description_tag = soup.find("meta", attrs={"name": "description"})
-        description = description_tag.get("content", "") if description_tag else ""
-
-        artist_match = re.search(
-            r"\sby\s(.+?)\s+\(@([^)]+)\)",
-            description,
-        )
-
-        if artist_match:
-            info.artist_name = artist_match.group(1).strip()
-            info.artist_username = artist_match.group(2).strip()
-            
-            
-            
 
         # 4. Extract Duration (Seconds and formatted MM:SS)
         dur_match = re.search(r'"duration"\s*:\s*([0-9.]+)', payload)
