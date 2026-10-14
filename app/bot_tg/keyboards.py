@@ -138,13 +138,13 @@ def generate_buttons_for_attach_with_song(
         )
 
     else:
-        ...
+        pass
 
     # Third row
     buttons.append(
         [
             InlineKeyboardButton(
-                "📩 Contact Us",
+                "📩 Contact Us (Increase Speed)",
                 url=MY_TELEGRAM_CONTACT_LINK,
             ),
         ]

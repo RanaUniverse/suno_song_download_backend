@@ -182,7 +182,7 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
     try:
         buttons = generate_dynamic_keyboard(final_song_url)
-        song_info_photo = await message.reply_photo(
+        await message.reply_photo(
             photo=song_data.image_url or "",
             # TODO i need to htink how to handle image if not
             caption=caption,
@@ -229,10 +229,9 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
                     #     thumbnail = None
 
                     song_caption = (
-                        f"{generate_song_details_only(song_data)}\n"
-                        f"📥 <b>Download this song and use it to create videos for "
-                        f"YouTube, Facebook, and more!</b>\n\n"
-                        f"😊 <b>Send more song links to download!</b> 🎶"
+                        f"🔗✨ Send Any Song Link & Get Your Favorite "
+                        f"Track as an Audio File! 🎧🎵\n\n"
+                        f"🚀 Fast • Easy • High Quality 🔊"
                     )
                     buttons = generate_buttons_for_attach_with_song(
                         song_url=song_data.song_url_for_browser,
@@ -244,9 +243,6 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
                         do_quote=True,
                         reply_markup=InlineKeyboardMarkup(buttons),
                     )
-
-                    if thumbnail:
-                        await song_info_photo.delete()
 
                     if audio_after_send.audio:
 
