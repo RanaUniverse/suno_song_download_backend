@@ -56,6 +56,9 @@ from .suno.storage import get_base_name, download_cover_image
 
 DEFAULT_HEADERS = settings.suno.default_headers
 
+# This below part is for handle different type of text output
+# to the terminal or whatsoever
+
 
 def configure_output(stream: TextIO) -> None:
     if hasattr(stream, "reconfigure"):
@@ -83,9 +86,8 @@ class SunoScraper:
         share_code: str,
     ) -> ResolvedSunoLink | None:
         """
-        Here i will pass the short id to get the song info
-
         Attempts to resolve a short Suno shared link (/s/CODE) to the actual song ID.
+        Here i will pass the short id to get the song info
 
         It returns the large Content ID and type of this if any
         """
@@ -301,14 +303,20 @@ class SunoScraper:
         """
         Decrypts Suno audio using the Mango system
         (AES-GCM unwrapping + AES-128-CTR stream decryption)
-        and converts it to the desired format (M4A, MP3 320 kbps or uncompressed WAV).
+        and converts it to the desired format
+        (M4A, MP3 320 kbps or uncompressed WAV).
         """
         if progress_callback:
             progress_callback("License", 0, 0, 10.0)
 
         # 1. Get Mango license keys
         rights_url = "https://studio-api.prod.suno.com/api/mango/rights"
-        payload = {"content_params": {"content_id": song_id, "content_type": "clip"}}
+        payload = {
+            "content_params": {
+                "content_id": song_id,
+                "content_type": "clip",
+            }
+        }
         rights_res = self.session.post(
             rights_url,
             json=payload,
@@ -1164,7 +1172,12 @@ def launch_cli():
 
     try:
 
-        def progress_cb(stage, downloaded, total, percent):
+        def progress_cb(
+            stage: str,
+            downloaded: int,
+            total: int,
+            percent: float,
+        ):
             if total > 0:
                 mb_d = downloaded / (1024 * 1024)
                 mb_t = total / (1024 * 1024)

@@ -83,6 +83,9 @@ class SongInfo(BaseModel):
 
 
 class ResolvedSunoLink(BaseModel):
+    """
+    This say if the link belongs to song or hook
+    """
     type: Literal["song", "hook"]
     content_id: str = Field(
         description="The large uuid like thing is content id",
