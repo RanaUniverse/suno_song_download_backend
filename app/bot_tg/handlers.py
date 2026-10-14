@@ -48,7 +48,6 @@ from .text_formatter import (
 
 from .keyboards import (
     generate_dynamic_keyboard,
-    generate_buttons_for_attach_with_song,
 )
 
 from .config import StickerFileId
@@ -233,15 +232,11 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
                         f"Track as an Audio File! 🎧🎵\n\n"
                         f"🚀 Fast • Easy • High Quality 🔊"
                     )
-                    buttons = generate_buttons_for_attach_with_song(
-                        song_url=song_data.song_url_for_browser,
-                    )
                     audio_after_send = await message.reply_audio(
                         audio=file,
                         caption=song_caption,
                         thumbnail=thumbnail,
                         do_quote=True,
-                        reply_markup=InlineKeyboardMarkup(buttons),
                     )
 
                     if audio_after_send.audio:

@@ -23,7 +23,7 @@ from .text_formatter import (
 )
 from app.config import settings
 
-from .keyboards import generate_buttons_for_attach_with_song
+from .keyboards import generate_dynamic_keyboard
 
 SONG_FORWARD_GROUP_ID = settings.bot.song_forward_group_id
 
@@ -113,7 +113,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     #     text=txt,
     #     chat_id=user.id,
     # )
-    buttons = generate_buttons_for_attach_with_song()
+    buttons = generate_dynamic_keyboard()
     reply_markup = InlineKeyboardMarkup(buttons)
 
     if settings.bot.start_video_file_id:
