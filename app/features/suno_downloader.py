@@ -8,6 +8,7 @@ suno_downloader.py
 """
 
 import os
+from pathlib import Path
 import re
 import sys
 
@@ -53,6 +54,7 @@ from .suno.models import ResolvedSunoLink
 
 from .suno.scraper import HookSongScraper, AudioSongScraper
 from .suno.storage import get_base_name, download_cover_image
+from app.config import AudioFormat, SUPPORTED_AUDIO_FORMAT
 
 DEFAULT_HEADERS = settings.suno.default_headers
 
@@ -295,19 +297,31 @@ class SunoScraper:
         self,
         song_id: str,
         stream_url: str,
-        output_audio_path: str,
-        audio_format: str = "mp3",
+        output_audio_path: Path,
+        audio_format: AudioFormat = "m4a",
         keep_m4a: bool = False,
         progress_callback: Optional[Callable[[str, int, int, float], None]] = None,
-    ) -> str:
+    ) -> Path | None:
         """
+        output_audio_path -> i need to make sure this exists with its parents dir
+
+        The caller is responsible for creating the output directory.
+
         Decrypts Suno audio using the Mango system
         (AES-GCM unwrapping + AES-128-CTR stream decryption)
         and converts it to the desired format
         (M4A, MP3 320 kbps or uncompressed WAV).
         """
+
+        fmt = audio_format.lower().strip()
+        if fmt not in SUPPORTED_AUDIO_FORMAT:
+            RanaLogger.warning(f"Unsupported audio format: {audio_format}")
+            return None
+
         if progress_callback:
             progress_callback("License", 0, 0, 10.0)
+
+        # temp_decrypted: Path | None = None
 
         # 1. Get Mango license keys
         rights_url = "https://studio-api.prod.suno.com/api/mango/rights"
@@ -353,10 +367,13 @@ class SunoScraper:
             timeout=30,
         )
         if res.status_code != 200:
-            raise Exception(f"Error downloading audio stream (HTTP {res.status_code})")
+            RanaLogger.error(
+                f"Error downloading audio stream (HTTP {res.status_code})",
+            )
+            return None
 
         total_size = int(res.headers.get("content-length", 0))
-        encrypted_chunks = []
+        encrypted_chunks: list[bytes] = []
         downloaded = 0
 
         for chunk in res.iter_content(chunk_size=64 * 1024):
@@ -383,28 +400,33 @@ class SunoScraper:
         decryptor = cipher.decryptor()
         decrypted_audio = decryptor.update(encrypted_data) + decryptor.finalize()
 
-        fmt = audio_format.lower().strip()
-        if fmt not in {"m4a", "mp3", "wav"}:
-            raise ValueError(f"Unsupported audio format: {audio_format}")
-
         # M4A is already the decrypted source stream. Write it directly to its
         # final .m4a filename; do not invoke FFmpeg or perform a re-encode.
         if fmt == "m4a":
-            with open(output_audio_path, "wb") as f:
-                f.write(decrypted_audio)
+            output_audio_path.write_bytes(decrypted_audio)
+            # output_path.write_bytes(decrypted_audio)
             if progress_callback:
                 progress_callback("Completed", downloaded, total_size, 100.0)
             return output_audio_path
 
         # MP3/WAV need FFmpeg, so keep a short-lived M4A input only for those
         # conversion requests. --keep-m4a preserves the same source beside it.
-        m4a_path = output_audio_path.rsplit(".", 1)[0] + ".m4a"
+
+        # m4a_path = output_audio_path.rsplit(".", 1)[0] + ".m4a"
+        m4a_path = output_audio_path.with_suffix(".m4a")
         if keep_m4a:
-            with open(m4a_path, "wb") as f:
-                f.write(decrypted_audio)
-        temp_decrypted = output_audio_path + ".part.m4a"
-        with open(temp_decrypted, "wb") as f:
-            f.write(decrypted_audio)
+            m4a_path.write_bytes(decrypted_audio)
+            # with open(m4a_path, "wb") as f:
+            #     f.write(decrypted_audio)
+
+        # temp_decrypted = output_audio_path + ".part.m4a"
+        # with open(temp_decrypted, "wb") as f:
+        #     f.write(decrypted_audio)
+
+        temp_decrypted = output_audio_path.with_name(
+            f"{output_audio_path.stem}.part.m4a"
+        )
+        temp_decrypted.write_bytes(decrypted_audio)
 
         # 5. Convert to standard MP3 or Lossless WAV with FFmpeg
         if progress_callback:
@@ -415,41 +437,53 @@ class SunoScraper:
                 self.ffmpeg_exe,
                 "-y",
                 "-i",
-                temp_decrypted,
+                str(temp_decrypted),
                 "-vn",
                 "-c:a",
                 "pcm_s16le",
-                output_audio_path,
+                str(output_audio_path),
             ]
         else:
             cmd = [
                 self.ffmpeg_exe,
                 "-y",
                 "-i",
-                temp_decrypted,
+                str(temp_decrypted),
                 "-vn",
                 "-c:a",
                 "libmp3lame",
                 "-b:a",
                 "320k",
-                output_audio_path,
+                str(output_audio_path),
             ]
 
-        conv_res = subprocess.run(cmd, capture_output=True, text=True)
+        conv_res = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+        )
 
         # Clean up temporary file
-        if os.path.exists(temp_decrypted):
-            try:
-                os.remove(temp_decrypted)
-            except Exception:
-                pass
+        # if os.path.exists(temp_decrypted):
+        #     try:
+        #         os.remove(temp_decrypted)
+        #     except Exception:
+        #         pass
+
+        # Clean up the temporary input.
+        try:
+            temp_decrypted.unlink(missing_ok=True)
+        except OSError as exc:
+            RanaLogger.warning(f"Could not remove temporary file: {exc}")
 
         if conv_res.returncode != 0:
+            RanaLogger.error(f"FFmpeg conversion failed: {conv_res.stderr}")
+            return None
             # Fallback: rename the decrypted m4a if ffmpeg fails
-            fallback_m4a = output_audio_path.rsplit(".", 1)[0] + ".m4a"
-            with open(fallback_m4a, "wb") as f:
-                f.write(decrypted_audio)
-            return fallback_m4a
+            # fallback_m4a = output_audio_path.rsplit(".", 1)[0] + ".m4a"
+            # with open(fallback_m4a, "wb") as f:
+            #     f.write(decrypted_audio)
+            # return fallback_m4a
 
         if progress_callback:
             progress_callback("Completed", downloaded, total_size, 100.0)
@@ -458,12 +492,25 @@ class SunoScraper:
 
     def get_audio_duration_from_ffmpeg(
         self,
-        file_path: str,
+        file_path_path: Path | None = None,
+        file_path: str = "",
     ) -> float:
         """
         Gets the duration of the audio file in seconds using FFmpeg.
         """
+        if not file_path_path:
+            return 0.0
 
+        try:
+            cmd = [self.ffmpeg_exe, "-i", str(file_path_path)]
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            match = re.search(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", res.stderr)
+            if match:
+                h, m, s = match.groups()
+                return int(h) * 3600 + int(m) * 60 + float(s)
+        except Exception:
+            pass
+        # TODO later i will remove all the below thigns
         if not os.path.exists(file_path):
             return 0.0
         try:
@@ -998,7 +1045,7 @@ class SunoScraper:
         self,
         info: SongInfo,
         # url: str,
-        output_dir: str = "downloads",
+        output_dir: str | Path = "downloads",
         audio_format: str = "mp3",
         keep_m4a: bool = False,
         save_cover: bool = True,
@@ -1012,7 +1059,6 @@ class SunoScraper:
         Downloads, decrypts, and saves the full song as M4A, MP3, or WAV.
         """
 
-        # info = self.scrape_song_info(url)
         info = info
         song_id = info.base_audio_id
 
@@ -1024,21 +1070,27 @@ class SunoScraper:
             ),
         )
 
-        os.makedirs(
-            output_dir,
-            exist_ok=True,
-        )
+        # os.makedirs(
+        #     output_dir,
+        #     exist_ok=True,
+        # )
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
 
         base_name = get_base_name(info)
 
         fmt = audio_format.lower().strip()
-        if fmt not in {"m4a", "mp3", "wav"}:
+        if fmt not in SUPPORTED_AUDIO_FORMAT:
             raise ValueError(f"Unsupported audio format: {audio_format}")
+
         ext = fmt
 
         # Decrypt and save audio (original M4A, MP3, or WAV)
-        audio_out = os.path.join(output_dir, f"{base_name}.{ext}")
-        m4a_out = os.path.join(output_dir, f"{base_name}.m4a")
+        # audio_out = os.path.join(output_dir, f"{base_name}.{ext}")
+        # m4a_out = os.path.join(output_dir, f"{base_name}.m4a")
+
+        audio_out = output_dir / f"{base_name}.{ext}"
+        m4a_out = output_dir / f"{base_name}.m4a"
 
         stream_url = (
             info.audio_url
@@ -1046,25 +1098,32 @@ class SunoScraper:
         )
 
         can_reuse_existing = (
-            os.path.exists(audio_out)
-            and os.path.getsize(audio_out) > 50000
-            and (not keep_m4a or ext == "m4a" or os.path.exists(m4a_out))
+            audio_out.exists()
+            # os.path.exists(audio_out)
+            and audio_out.stat().st_size > 50000
+            # and os.path.getsize(audio_out) > 50000
+            and (not keep_m4a or ext == "m4a" or m4a_out.exists())
         )
+
         if can_reuse_existing:
             final_audio_path = audio_out
+
             if progress_callback:
                 progress_callback("Completed", 1, 1, 100.0)
         else:
-            print("Song id and stram url,", song_id, stream_url)
+            print("Song id and stram url is Downloadin,", song_id, stream_url)
 
             final_audio_path = self.decrypt_and_download(
-                song_id,
-                stream_url,
-                audio_out,
+                song_id=song_id,
+                stream_url=stream_url,
+                output_audio_path=audio_out,
                 audio_format=ext,
                 keep_m4a=keep_m4a,
                 progress_callback=progress_callback,
             )
+            if final_audio_path is None:
+                raise RuntimeError("Failed to download and decrypt the audio.")
+
         m4a_path = m4a_out if ext == "m4a" or keep_m4a else None
         duration = self.get_audio_duration_from_ffmpeg(final_audio_path)
 
@@ -1099,15 +1158,19 @@ class SunoScraper:
                 f.write(f"{info.prompt or 'Not available'}\n")
             metadata_path = meta_path
 
-        return DownloadResult(
+        d = DownloadResult(
             info=info,
-            audio_path=final_audio_path,
+            audio_path=str(
+                final_audio_path
+            ),  # TODO i will later pass the full PATH here
             format=ext,
             duration=duration,
             cover_path=cover_path,
             metadata_path=metadata_path,
-            m4a_path=m4a_path,
+            m4a_path=str(m4a_path),
         )
+        print("DDDDDDDdd", d)
+        return d
 
 
 def launch_cli():
