@@ -21,6 +21,13 @@ from pydantic_settings import (
     SettingsConfigDict,
 )
 
+SUPPORTED_AUDIO_FORMAT = ("m4a", "mp3", "wav")
+AudioFormat = Literal[
+    "m4a",
+    "mp3",
+    "wav",
+]
+
 
 class WebAppSettings(BaseModel):
     """
@@ -192,7 +199,7 @@ class BotSettings(BaseModel):
     )
     help_account_username: str
 
-    default_song_format: Literal["m4a", "mp3", "wav"] = Field(
+    default_song_format: AudioFormat = Field(
         default="m4a",
         description="The format of song my bot will send to user is this",
     )
