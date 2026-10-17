@@ -206,11 +206,14 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
         await loading_sticker.delete()
 
         if song_path_after_download is not None:
-            audio_path = Path(song_path_after_download)
-            thumbnail_path = audio_path.with_suffix(".jpeg")
-            thumbnail = None
-            if thumbnail_path.exists():
-                thumbnail = thumbnail_path.open("rb")
+            # TODO
+            # for now i will use my own imag so comment out below
+            # audio_path = Path(song_path_after_download)
+
+            # thumbnail_path = audio_path.with_suffix(".jpeg")
+            # thumbnail = None
+            # if thumbnail_path.exists():
+            #     thumbnail = thumbnail_path.open("rb")
 
             with open(song_path_after_download, "rb") as file:
                 await message.reply_chat_action(
@@ -228,14 +231,22 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
                     #     thumbnail = None
 
                     song_caption = (
+                        f'<a href="https://SunoAisongDownload.Online">'
+                        f"🌐 Open Suno AI Song Downloader 🚀</a>\n"
+                        f"🔗 https://SunoAisongDownload.Online\n\n"
                         f"🔗✨ Send Any Song Link & Get Your Favorite "
                         f"Track as an Audio File! 🎧🎵\n\n"
                         f"🚀 Fast • Easy • High Quality 🔊"
                     )
+                    ru_thumbnail = (
+                        Path().cwd()
+                        / "static"
+                        / "RanaUniverseLogoForThumbnailTelegramBot.png"
+                    )
                     audio_after_send = await message.reply_audio(
                         audio=file,
                         caption=song_caption,
-                        thumbnail=thumbnail,
+                        thumbnail=ru_thumbnail,
                         do_quote=True,
                     )
 
