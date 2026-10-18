@@ -430,7 +430,6 @@ def health(
     request: Request,
     background: BackgroundTasks,
     q: Annotated[VisitQuery, Query()],
-    # visit: bool = False,
 ):
     if q.visit:
         forwarded = request.headers.get("x-forwarded-for", "")

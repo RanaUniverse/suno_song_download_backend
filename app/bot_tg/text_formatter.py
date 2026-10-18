@@ -50,7 +50,7 @@ def get_welcome_message(full_name: str) -> str:
 help_text = (
     "🤖 <b>Help Center - Suno Song Downloader</b> 🎵\n\n"
     "Here is how you can use this bot:\n"
-    "1️⃣ Copy a song link from our web platform (<code>rana49.online</code>).\n"
+    "1️⃣ Copy a song link from our web platform (<code>sunoaisongdownload.online</code>).\n"
     "2️⃣ Paste and send the link directly here in the chat.\n"
     "3️⃣ The bot will validate the link and prepare your song for download! ✨\n\n"
     "<b>Need more assistance?</b> Contact our support or check out /about."
@@ -72,7 +72,7 @@ settings_text = (
 
 token_text = (
     "🔑 <b>Account Token Management</b>\n\n"
-    "To link your Telegram account with your profile on <b>rana49.online</b>, "
+    "To link your Telegram account with your profile on <b>sunoaisongdownload.online</b>, "
     "you will be able to generate and submit your access token here.\n\n"
     "<i>(This will soon let the bot sync downloads directly with your web account! 🌐)</i>"
 )

@@ -40,7 +40,7 @@ class HealthLog(BaseModel):
 
 def build_visit_text(log: HealthLog) -> str:
     indian_time = datetime.fromtimestamp(log.time, tz=IST)
-    e = lambda v: html.escape(v or "-")
+    e = lambda v: html.escape(v or "-")  # type: ignore #TODO later i will think
     full_path = f"{log.path}?{log.query}" if log.query else log.path
 
     return (
