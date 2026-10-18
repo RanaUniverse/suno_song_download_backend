@@ -46,10 +46,16 @@ from app.features.suno_downloader import (
     # sanitize_filename,
 )
 from app.config import settings
+
 from app.shared.notifier import (
     notify_visit,
     HealthLog,
     build_visit_text,
+    collect_client_info,
+    fire_and_forget,
+    notify_download_attempt,
+    notify_download_failed,
+    forward_song_to_group,
 )
 
 configure_output(sys.stdout)
@@ -166,9 +172,16 @@ def get_local_ip() -> str:
         return socket.gethostbyname(socket.gethostname())
 
 
+# class DownloadRequest(BaseModel):
+#     url: str
+#     format: Optional[str] = "mp3"
 class DownloadRequest(BaseModel):
     url: str
     format: Optional[str] = "mp3"
+    screen: str | None = None
+    viewport: str | None = None
+    lang: str | None = None
+    tz: str | None = None
 
 
 class SampleRequest(BaseModel):
@@ -193,9 +206,14 @@ async def index(request: Request):
 
 
 @app.post("/api/download")
-async def api_download(req: DownloadRequest, background_tasks: BackgroundTasks):
+async def api_download(
+    req: DownloadRequest,
+    request:Request,
+    background_tasks: BackgroundTasks,
+):
+    client = collect_client_info(request, req.model_dump(exclude={"url", "format"}))
+    url = req.url.strip()
     try:
-        url = req.url.strip()
         if not url:
             raise HTTPException(status_code=400, detail="URL required")
 
@@ -204,12 +222,22 @@ async def api_download(req: DownloadRequest, background_tasks: BackgroundTasks):
             raise HTTPException(
                 status_code=400, detail="Format must be m4a, mp3, or wav"
             )
-        info = scraper.scrape_song_info(url)
-        res = scraper.download_song(
+
+        fire_and_forget(notify_download_attempt(client, url, fmt))
+
+        info = await asyncio.to_thread(scraper.scrape_song_info, url)
+        res = await asyncio.to_thread(
+            scraper.download_song,
             info,
             output_dir=DOWNLOADS_DIR,
             audio_format=fmt,
         )
+        # info = scraper.scrape_song_info(url)
+        # res = scraper.download_song(
+        #     info,
+        #     output_dir=DOWNLOADS_DIR,
+        #     audio_format=fmt,
+        # )
         info = res.info
         audio_file = os.path.basename(res.audio_path)
         duration = res.duration
@@ -236,6 +264,18 @@ async def api_download(req: DownloadRequest, background_tasks: BackgroundTasks):
         elif info.image_url:
             cover_url = info.image_url
 
+        # 3) the song is ready: upload it to the Telegram group
+        fire_and_forget(
+            forward_song_to_group(
+                client,
+                url,
+                res.audio_path,
+                info.title,
+                res.format,
+                duration_formatted,
+            )
+        )
+
         # Schedule auto-deletion in 5 minutes (300s) to avoid taking up disk space on the server
         background_tasks.add_task(delayed_remove_file, res.audio_path, 300)
         if res.cover_path:
@@ -256,6 +296,9 @@ async def api_download(req: DownloadRequest, background_tasks: BackgroundTasks):
             "suggested_sample_seconds": suggested_sec,
             "suggested_sample_formatted": suggested_formatted,
         }
+    except HTTPException:
+        raise
+
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
