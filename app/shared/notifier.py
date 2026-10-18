@@ -26,6 +26,7 @@ class HealthLog(BaseModel):
     ip: str
     method: str
     path: str
+    query: str = ""  # new: e.g. "visit=1"
     user_agent: str | None = None
     origin: str | None = None
     referer: str | None = None
@@ -33,6 +34,7 @@ class HealthLog(BaseModel):
 
 def build_visit_text(log: HealthLog) -> str:
     indian_time = datetime.fromtimestamp(log.time, tz=IST)
+    full_path = f"{log.path}?{log.query}" if log.query else log.path
 
     return (
         f"🌐 <b>Website Health Check Visit</b>\n\n"
@@ -40,7 +42,7 @@ def build_visit_text(log: HealthLog) -> str:
         f"📍 <b>IP:</b> <code>{html.escape(log.ip)}</code>\n"
         f"🔗 <b>Origin:</b> {html.escape(log.origin or '-')}\n"
         f"↩️ <b>Referer:</b> {html.escape(log.referer or '-')}\n"
-        f"🛣 <b>Request:</b> <code>{html.escape(log.method)} {html.escape(log.path)}</code>\n"
+        f"🛣 <b>Request:</b> <code>{html.escape(log.method)} {html.escape(full_path)}</code>\n"
         f"💻 <b>Browser:</b> {html.escape(log.user_agent or '-')}"
     )
 

@@ -423,21 +423,22 @@ def health(
     background: BackgroundTasks,
     visit: bool = False,
 ):
-    log = HealthLog(
-        time=int(time.time()),
-        ip=request.client.host if request.client else "unknown",
-        method=request.method,
-        path=request.url.path,
-        user_agent=request.headers.get("user-agent"),
-        origin=request.headers.get("origin"),
-        referer=request.headers.get("referer"),
-    )
+    if visit:
+        log = HealthLog(
+            time=int(time.time()),
+            ip=request.client.host if request.client else "unknown",
+            method=request.method,
+            path=request.url.path,
+            query=request.url.query,
+            user_agent=request.headers.get("user-agent"),
+            origin=request.headers.get("origin"),
+            referer=request.headers.get("referer"),
+        )
+        background.add_task(notify_visit, build_visit_text(log))
 
-    print("HEALTH CHECK ACCESS:", log.model_dump_json(), flush=True)
-
-    background.add_task(notify_visit, build_visit_text(log))
-
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+    }
 
 
 def run_server():
