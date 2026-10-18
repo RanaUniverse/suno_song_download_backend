@@ -49,6 +49,15 @@ class WebAppSettings(BaseModel):
         "PRODUCTION",
     ] = "DEVELOPMENT"
 
+    ALLOWED_ORIGINS: list[str] = [
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+        "http://localhost:3000",
+        "https://SunoAisongDownload.online",
+        "https://sunoaisongdownload.online",
+        "https://www.sunoaisongdownload.online",
+    ]
+
 
 class MailAddressSettings(BaseModel):
     """

@@ -28,6 +28,7 @@ from fastapi import (
     Request,
     BackgroundTasks,
 )
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import (
     HTMLResponse,
     FileResponse,
@@ -44,6 +45,7 @@ from app.features.suno_downloader import (
     SunoScraper,
     # sanitize_filename,
 )
+from app.config import settings
 
 # Ensure UTF-8 in Windows console
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -53,6 +55,17 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
         pass
 
 app = FastAPI(title="Suno AI Mobile & Web Downloader HQ")
+
+
+# Allow your local VS Code frontend to access the backend API.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.app.ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 templates = Jinja2Templates(
     directory="templates",
