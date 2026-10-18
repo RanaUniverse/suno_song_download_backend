@@ -64,8 +64,11 @@ def get_bot_obj() -> Bot:
     One shared Bot for the whole web process (keeps the connection pool).
     """
 
-    bot = Bot(token=settings.bot.token.get_secret_value())
-    return bot
+    """One shared Bot for the whole web process (keeps the connection pool)."""
+    global _bot
+    if _bot is None:
+        _bot = Bot(token=settings.bot.token.get_secret_value())
+    return _bot
 
 
 def get_client_ip(request: Request) -> str:
