@@ -15,14 +15,13 @@ import time
 import asyncio
 from typing import (
     Optional,
-    # Dict,
-    # Any,
-    # List,
+    Annotated,
 )
 import qrcode
 import uvicorn
 from fastapi import (
     FastAPI,
+    Query,
     # Request,
     HTTPException,
     Request,
@@ -36,7 +35,7 @@ from fastapi.responses import (
 )
 
 # from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
@@ -417,13 +416,23 @@ async def list_downloaded_files():
 #     return {"status": "ok"}
 
 
+class VisitQuery(BaseModel):
+    visit: bool = False
+    screen: str | None = Field(default=None, max_length=20)
+    viewport: str | None = Field(default=None, max_length=20)
+    dpr: str | None = Field(default=None, max_length=6)
+    lang: str | None = Field(default=None, max_length=20)
+    tz: str | None = Field(default=None, max_length=40)
+
+
 @app.get("/api/health")
 def health(
     request: Request,
     background: BackgroundTasks,
-    visit: bool = False,
+    q: Annotated[VisitQuery, Query()],
+    # visit: bool = False,
 ):
-    if visit:
+    if q.visit:
         forwarded = request.headers.get("x-forwarded-for", "")
         ip = forwarded.split(",")[0].strip() or (
             request.client.host if request.client else "unknown"
@@ -437,6 +446,12 @@ def health(
             user_agent=request.headers.get("user-agent"),
             origin=request.headers.get("origin"),
             referer=request.headers.get("referer"),
+            platform=request.headers.get("sec-ch-ua-platform"),
+            screen=q.screen,
+            viewport=q.viewport,
+            dpr=q.dpr,
+            lang=q.lang,
+            tz=q.tz,
         )
         background.add_task(notify_visit, build_visit_text(log))
 

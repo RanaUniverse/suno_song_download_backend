@@ -30,20 +30,30 @@ class HealthLog(BaseModel):
     user_agent: str | None = None
     origin: str | None = None
     referer: str | None = None
+    platform: str | None = None
+    screen: str | None = None
+    viewport: str | None = None
+    dpr: str | None = None
+    lang: str | None = None
+    tz: str | None = None
 
 
 def build_visit_text(log: HealthLog) -> str:
     indian_time = datetime.fromtimestamp(log.time, tz=IST)
+    e = lambda v: html.escape(v or "-")
     full_path = f"{log.path}?{log.query}" if log.query else log.path
 
     return (
         f"🌐 <b>Website Health Check Visit</b>\n\n"
         f"🕒 <code>{indian_time:%Y-%m-%d %I:%M:%S %p} IST</code>\n"
         f"📍 <b>IP:</b> <code>{html.escape(log.ip)}</code>\n"
-        f"🔗 <b>Origin:</b> {html.escape(log.origin or '-')}\n"
-        f"↩️ <b>Referer:</b> {html.escape(log.referer or '-')}\n"
+        f"🔗 <b>Origin:</b> {e(log.origin)}\n"
+        f"↩️ <b>Referer:</b> {e(log.referer)}\n"
         f"🛣 <b>Request:</b> <code>{html.escape(log.method)} {html.escape(full_path)}</code>\n"
-        f"💻 <b>Browser:</b> {html.escape(log.user_agent or '-')}"
+        f"📱 <b>Platform:</b> {e(log.platform)}\n"
+        f"🖥 <b>Screen:</b> {e(log.screen)} (window {e(log.viewport)}, ×{e(log.dpr)})\n"
+        f"🌍 <b>Language / Timezone:</b> {e(log.lang)} / {e(log.tz)}\n"
+        f"💻 <b>Browser:</b> {e(log.user_agent)}"
     )
 
 
