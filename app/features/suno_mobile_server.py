@@ -47,6 +47,11 @@ from app.features.suno_downloader import (
     # sanitize_filename,
 )
 from app.config import settings
+from app.shared.notifier import (
+    notify_visit,
+    HealthLog,
+    build_visit_text,
+)
 
 configure_output(sys.stdout)
 configure_output(sys.stderr)
@@ -405,6 +410,34 @@ async def list_downloaded_files():
             clean_name = f.rsplit(".", 1)[0]
             files.append({"filename": f, "name": clean_name})
     return files
+
+
+# @app.get("/api/health")
+# def health():
+#     return {"status": "ok"}
+
+
+@app.get("/api/health")
+def health(
+    request: Request,
+    background: BackgroundTasks,
+    visit: bool = False,
+):
+    log = HealthLog(
+        time=int(time.time()),
+        ip=request.client.host if request.client else "unknown",
+        method=request.method,
+        path=request.url.path,
+        user_agent=request.headers.get("user-agent"),
+        origin=request.headers.get("origin"),
+        referer=request.headers.get("referer"),
+    )
+
+    print("HEALTH CHECK ACCESS:", log.model_dump_json(), flush=True)
+
+    background.add_task(notify_visit, build_visit_text(log))
+
+    return {"status": "ok"}
 
 
 def run_server():
