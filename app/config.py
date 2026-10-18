@@ -221,6 +221,15 @@ class BotSettings(BaseModel):
         ),
     )
 
+    health_check_notify_enabled: bool = Field(
+        default=True,
+        description="Send Telegram notifications when the health endpoint is accessed.",
+    )
+    health_check_notify_chat_id: int | None = Field(
+        default=8176162859,
+        description="This say where the response should to send ",
+    )
+
 
 class SongSettings(BaseModel):
     duration_threshold_seconds: int = Field(
