@@ -424,9 +424,13 @@ def health(
     visit: bool = False,
 ):
     if visit:
+        forwarded = request.headers.get("x-forwarded-for", "")
+        ip = forwarded.split(",")[0].strip() or (
+            request.client.host if request.client else "unknown"
+        )
         log = HealthLog(
             time=int(time.time()),
-            ip=request.client.host if request.client else "unknown",
+            ip=ip,
             method=request.method,
             path=request.url.path,
             query=request.url.query,
