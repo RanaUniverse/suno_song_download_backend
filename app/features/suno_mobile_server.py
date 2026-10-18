@@ -43,16 +43,13 @@ from fastapi.staticfiles import StaticFiles
 # Import the audio download and processing engine
 from app.features.suno_downloader import (
     SunoScraper,
+    configure_output,
     # sanitize_filename,
 )
 from app.config import settings
 
-# Ensure UTF-8 in Windows console
-if sys.stdout and hasattr(sys.stdout, "reconfigure"):
-    try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+configure_output(sys.stdout)
+configure_output(sys.stderr)
 
 app = FastAPI(title="Suno AI Mobile & Web Downloader HQ")
 
