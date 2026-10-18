@@ -229,6 +229,11 @@ class BotSettings(BaseModel):
         default=8176162859,
         description="This say where the response should to send ",
     )
+    web_download_notify_enabled: bool = Field(
+        default=True,
+        description="Alert the admin chat and upload songs to song_forward_group_id "
+        "when someone downloads through the website.",
+    )
 
 
 class SongSettings(BaseModel):

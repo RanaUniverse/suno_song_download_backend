@@ -4,6 +4,8 @@ app/shared/notifier.py
 Website visit alerts sent to the Telegram group with python-telegram-bot.
 """
 
+import asyncio
+import os
 import html
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
@@ -57,24 +59,13 @@ def build_visit_text(log: HealthLog) -> str:
     )
 
 
-async def _get_bot() -> Bot:
+def get_bot_obj() -> Bot:
     """
     One shared Bot for the whole web process (keeps the connection pool).
     """
 
-    global _bot
-    if _bot is None:
-        bot = Bot(token=settings.bot.token.get_secret_value())
-        await bot.initialize()
-        _bot = bot
-    return _bot
-
-
-async def close_bot() -> None:
-    global _bot
-    if _bot is not None:
-        await _bot.shutdown()
-        _bot = None
+    bot = Bot(token=settings.bot.token.get_secret_value())
+    return bot
 
 
 def get_client_ip(request: Request) -> str:
@@ -110,7 +101,7 @@ async def notify_visit(
         )
 
     try:
-        bot = await _get_bot()
+        bot = get_bot_obj()
         await bot.send_message(
             chat_id=notifier_chat_id,
             text=text,
