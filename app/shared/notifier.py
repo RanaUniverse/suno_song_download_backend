@@ -88,10 +88,10 @@ def build_visit_text(log: HealthLog) -> str:
         f"🔗 <b>Origin:</b> {esc(log.origin)}\n"
         f"↩️ <b>Referer:</b> {esc(log.referer)}\n"
         f"🛣 <b>Request:</b> <code>{html.escape(log.method)} {html.escape(full_path)}</code>\n"
-        f"📱 <b>Platform:</b> {esc(log.platform)}\n"
-        f"🖥 <b>Screen:</b> {esc(log.screen)} (window {esc(log.viewport)}, ×{esc(log.dpr)})\n"
-        f"🌍 <b>Language / Timezone:</b> {esc(log.lang)} / {esc(log.tz)}\n"
-        f"💻 <b>Browser:</b> {esc(log.user_agent)}"
+        f"📱 <b>Platform:</b> {esc(log.platform)}\n\n"
+        f"🖥 <b>Screen:</b> {esc(log.screen)} (window {esc(log.viewport)}, ×{esc(log.dpr)})\n\n"
+        f"🌍 <b>Language / Timezone:</b> {esc(log.lang)} / {esc(log.tz)}\n\n"
+        f"💻 <b>Browser:</b> <code>{esc(log.user_agent)}</code>"
     )
 
 
