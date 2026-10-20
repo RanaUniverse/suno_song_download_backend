@@ -7,13 +7,15 @@ suno_downloader.py
 
 """
 
+import asyncio
 import os
 import sys
 import socket
 import urllib.parse
 import time
-import asyncio
 from typing import (
+    Callable,
+    Awaitable,
     Optional,
     Annotated,
 )
@@ -27,17 +29,18 @@ from fastapi import (
     Request,
     BackgroundTasks,
 )
+
+from fastapi import Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import (
     HTMLResponse,
     FileResponse,
     JSONResponse,
 )
-
-# from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
-from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+from pydantic import BaseModel, Field
 
 # Import the audio download and processing engine
 from app.features.suno_downloader import (
@@ -47,6 +50,7 @@ from app.features.suno_downloader import (
 )
 from app.config import settings
 
+
 from app.shared.notifier import (
     notify_visit,
     HealthLog,
@@ -54,7 +58,6 @@ from app.shared.notifier import (
     collect_client_info,
     fire_and_forget,
     notify_download_attempt,
-    notify_download_failed,
     forward_song_to_group,
 )
 
@@ -530,10 +533,6 @@ def run_server():
     print("-" * 58 + "\n")
 
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
-
-
-from typing import Callable, Awaitable
-from fastapi import Request, Response
 
 
 @app.middleware("http")
