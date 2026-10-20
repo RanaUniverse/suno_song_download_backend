@@ -532,13 +532,18 @@ def run_server():
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 
-import time
-import logging
-from fastapi import Request
+from typing import Callable, Awaitable
+from fastapi import Request, Response
 
 
 @app.middleware("http")
-async def log_requests_with_time(request: Request, call_next):
+async def log_requests_with_time(
+    request: Request,
+    call_next: Callable[
+        [Request],
+        Awaitable[Response],
+    ],
+):
     start_time = time.time()
 
     # Process the request
