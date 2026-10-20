@@ -208,7 +208,7 @@ async def index(request: Request):
 @app.post("/api/download")
 async def api_download(
     req: DownloadRequest,
-    request:Request,
+    request: Request,
     background_tasks: BackgroundTasks,
 ):
     client = collect_client_info(request, req.model_dump(exclude={"url", "format"}))
@@ -530,6 +530,36 @@ def run_server():
     print("-" * 58 + "\n")
 
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
+
+
+import time
+import logging
+from fastapi import Request
+
+
+@app.middleware("http")
+async def log_requests_with_time(request: Request, call_next):
+    start_time = time.time()
+
+    # Process the request
+    response = await call_next(request)
+
+    # Calculate duration in milliseconds
+    duration_ms = (time.time() - start_time) * 1000
+
+    # Get current timestamp
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+
+    # Extract client IP and port (fallback to empty if not available)
+    client_host = request.client.host if request.client else "127.0.0.1"
+    client_port = request.client.port if request.client else "0000"
+
+    # Print clean combined log line
+    print(
+        f"⏱️ [{timestamp}] {client_host}:{client_port} - \"{request.method} {request.url.path} HTTP/{request.scope.get('http_version', '1.1')}\" {response.status_code} ({duration_ms:.2f}ms)"
+    )
+
+    return response
 
 
 if __name__ == "__main__":
