@@ -6,6 +6,7 @@ private and useful data
 """
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import (
@@ -26,6 +27,11 @@ AudioFormat = Literal[
     "m4a",
     "mp3",
     "wav",
+]
+ThumbnailMode = Literal[
+    "song",
+    "brand",
+    "none",
 ]
 
 
@@ -233,6 +239,24 @@ class BotSettings(BaseModel):
         default=True,
         description="Alert the admin chat and upload songs to song_forward_group_id "
         "when someone downloads through the website.",
+    )
+
+    audio_thumbnail_mode: ThumbnailMode = Field(
+        default="song",
+        description=(
+            "Thumbnail mode for audio sent through Telegram: "
+            "'song' uses the song's thumbnail, "
+            "'brand' uses the bot's brand logo, "
+            "'none' sends no custom thumbnail."
+        ),
+    )
+
+    audio_thumbnail_brand_path: Path = Field(
+        # default=Path("static/RanaUniverseLogoForThumbnailTelegramBot.png"),
+        description=(
+            "Filesystem path to the brand logo used as an "
+            "audio thumbnail when audio_thumbnail_mode='brand'."
+        ),
     )
 
 

@@ -1111,7 +1111,7 @@ class SunoScraper:
             if progress_callback:
                 progress_callback("Completed", 1, 1, 100.0)
         else:
-            print("Song id and stram url is Downloadin,", song_id, stream_url)
+            print("Song id and stram url is Downloading,", song_id, stream_url)
 
             final_audio_path = self.decrypt_and_download(
                 song_id=song_id,

@@ -57,6 +57,8 @@ from app.config import settings
 
 from app.features.suno.service import download_suno_song
 
+from .thumbnail import get_audio_thumbnail
+
 # #
 
 
@@ -207,28 +209,13 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
         if song_path_after_download is not None:
             # TODO
-            # for now i will use my own imag so comment out below
-            # audio_path = Path(song_path_after_download)
-
-            # thumbnail_path = audio_path.with_suffix(".jpeg")
-            # thumbnail = None
-            # if thumbnail_path.exists():
-            #     thumbnail = thumbnail_path.open("rb")
+            audio_path = Path(song_path_after_download)
 
             with open(song_path_after_download, "rb") as file:
                 await message.reply_chat_action(
                     action=ChatAction.UPLOAD_VOICE,
                 )
                 try:
-                    # song_thumbnail = await download_image_to_memory(
-                    #     url=song_data.image_url,
-                    # )
-                    # print(song_thumbnail)
-
-                    # if song_thumbnail is not None:
-                    #     thumbnail = song_thumbnail
-                    # else:
-                    #     thumbnail = None
 
                     song_caption = (
                         f'<a href="https://SunoAisongDownload.Online">'
@@ -238,11 +225,6 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
                         f"Track as an Audio File! 🎧🎵\n\n"
                         f"🚀 Fast • Easy • High Quality 🔊"
                     )
-                    ru_thumbnail = (
-                        Path().cwd()
-                        / "static"
-                        / "RanaUniverseLogoForThumbnailTelegramBot.png"
-                    )
                     audio_after_send = await message.reply_audio(
                         audio=file,
                         duration=song_data.duration_in_seconds,
@@ -250,7 +232,7 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
                         # performer="Rana Universe Performer",
                         # title="Rana Universe Track Title",
                         caption=song_caption,
-                        thumbnail=ru_thumbnail,
+                        thumbnail=get_audio_thumbnail(audio_path),
                         do_quote=True,
                     )
 
