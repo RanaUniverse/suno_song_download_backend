@@ -218,11 +218,9 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
                 try:
 
                     song_caption = (
-                        f'<a href="https://SunoAisongDownload.Online">'
-                        f"🌐 Open Suno AI Song Downloader 🚀</a>\n"
                         f"🔗 https://SunoAisongDownload.Online\n\n"
+                        f"Visit Our Website To Download Song in Chrome\n"
                         f"🔗✨ Send Any Song Link & Get Your Favorite "
-                        f"Track as an Audio File! 🎧🎵\n\n"
                         f"🚀 Fast • Easy • High Quality 🔊"
                     )
                     audio_after_send = await message.reply_audio(
