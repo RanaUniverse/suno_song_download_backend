@@ -216,13 +216,14 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
                     action=ChatAction.UPLOAD_VOICE,
                 )
                 try:
-
-                    song_caption = (
-                        f"🔗 https://SunoAisongDownload.Online\n\n"
-                        f"Visit Our Website To Download Song in Chrome\n"
-                        f"🔗✨ Send Any Song Link & Get Your Favorite "
-                        f"🚀 Fast • Easy • High Quality 🔊"
-                    )
+                    song_caption = None
+                    if settings.bot.show_song_caption:
+                        song_caption = (
+                            f"🔗 https://SunoAisongDownload.Online\n\n"
+                            f"Visit Our Website To Download Song in Chrome\n"
+                            f"🔗✨ Send Any Song Link & Get Your Favorite "
+                            f"🚀 Fast • Easy • High Quality 🔊"
+                        )
                     audio_after_send = await message.reply_audio(
                         audio=file,
                         duration=song_data.duration_in_seconds,

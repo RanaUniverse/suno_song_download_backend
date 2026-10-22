@@ -258,6 +258,11 @@ class BotSettings(BaseModel):
             "audio thumbnail when audio_thumbnail_mode='brand'."
         ),
     )
+    show_song_caption: bool = Field(
+        default=True,
+        description="If it will shows song caption or not will be useful "
+        "for custom bot of other user so that they will not have problem",
+    )
 
 
 class SongSettings(BaseModel):
