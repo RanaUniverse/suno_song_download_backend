@@ -28,6 +28,7 @@ from app.bot_tg.photo_handler import (
 from app.bot_tg.start_handler import start_command
 from app.bot_tg.application import application
 from app.bot_tg.video_handler import get_video_file_id
+from app.bot_tg.audio import audio_handler
 
 if __name__ == "__main__":
 
@@ -63,5 +64,10 @@ if __name__ == "__main__":
             get_video_file_id,
         )
     )
-
+    application.add_handler(
+        MessageHandler(
+            filters.AUDIO,
+            audio_handler,
+        )
+    )
     application.run_polling()
