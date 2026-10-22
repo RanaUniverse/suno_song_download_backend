@@ -29,6 +29,7 @@ from app.bot_tg.start_handler import start_command
 from app.bot_tg.application import application
 from app.bot_tg.video_handler import get_video_file_id
 from app.bot_tg.audio import audio_handler
+from app.bot_tg.merge import merge_audio_conversation_handler
 
 if __name__ == "__main__":
 
@@ -44,6 +45,7 @@ if __name__ == "__main__":
     token_handler = CommandHandler("token", token_command)
     photo_command_handler = CommandHandler("photo", photo_command)
 
+    application.add_handler(merge_audio_conversation_handler)
     application.add_handler(start_handler)
     application.add_handler(echo_handler)
     application.add_handler(caps_handler)
