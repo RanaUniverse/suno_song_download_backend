@@ -518,7 +518,8 @@ merge_audio_conversation_handler = ConversationHandler(
             [
                 "merge",
                 "merge_audio",
-                "m",
+                "merge_song",
+                "merge_songs",
             ],
             merge_start,
         )
