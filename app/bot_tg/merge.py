@@ -527,7 +527,10 @@ merge_audio_conversation_handler = ConversationHandler(
     states={
         COLLECTING: [
             MessageHandler(filters.AUDIO, receive_audio),
-            CommandHandler("merge_now", merge_now),
+            CommandHandler(
+                "merge_now",
+                merge_now,
+            ),
             MessageHandler(
                 filters.Document.ALL
                 | filters.VOICE
