@@ -135,12 +135,6 @@ async def audio_handler(
         )
         return
 
-    print(audio)
-    print(audio.duration)
-    print(type(audio.duration))
-    print(audio.thumbnail)
-    print(type(audio.thumbnail))
-
     metadata = (
         f"{format_audio_info(audio)}\n"
         f"{format_thumbnail_info(thumbnail=audio.thumbnail)}\n\n"
