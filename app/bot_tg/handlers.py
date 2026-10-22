@@ -245,12 +245,17 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
                     )
                     audio_after_send = await message.reply_audio(
                         audio=file,
+                        duration=song_data.duration_in_seconds,
+                        # filename="I will not pass because this is will generate automatically",
+                        # performer="Rana Universe Performer",
+                        # title="Rana Universe Track Title",
                         caption=song_caption,
                         thumbnail=ru_thumbnail,
                         do_quote=True,
                     )
 
                     if audio_after_send.audio:
+                        print(audio_after_send)
 
                         user_mention = (
                             f'<a href="tg://user?id={user.id}">'
