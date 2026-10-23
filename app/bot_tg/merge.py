@@ -41,9 +41,18 @@ from telegram.ext import (
     filters,
 )
 
+
+import imageio_ffmpeg  # type: ignore
+
+
 from app.shared.logger_related import RanaLogger
 
 from .audio import format_duration
+
+#
+
+
+FFMPEG_EXE: str = imageio_ffmpeg.get_ffmpeg_exe()
 
 COLLECTING = 0
 
@@ -483,7 +492,13 @@ async def merge_with_ffmpeg(paths: list[Path], output_path: Path) -> Path:
     joined = "".join(f"[a{i}]" for i in range(count))
     filter_complex = ";".join(prepare) + f";{joined}concat=n={count}:v=0:a=1[out]"
 
-    command = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y"]
+    command = [
+        FFMPEG_EXE,
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+    ]
     for path in paths:
         command += ["-i", str(path)]
     command += ["-filter_complex", filter_complex, "-map", "[out]", *encoder]
