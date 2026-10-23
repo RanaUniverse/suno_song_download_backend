@@ -22,10 +22,18 @@ import html
 from pathlib import Path
 import shutil
 
-from telegram import Audio, Bot, Message, Update
+from telegram import (
+    Audio,
+    Bot,
+    Message,
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
 from telegram.ext import (
+    CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
     ConversationHandler,
@@ -72,6 +80,23 @@ MergingCallback = Callable[[], Awaitable[None]]
 # ---------------------------------------------------------------------------
 # Small helpers
 # ---------------------------------------------------------------------------
+def merge_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "🔀 Merge Audio Now",
+                    callback_data="merge_now",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "❌ Cancel Now",
+                    callback_data="merge_cancel",
+                ),
+            ],
+        ]
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,6 +177,25 @@ async def merge_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     clear_merge_data(context)  # always start fresh
 
+    if message.audio is not None:
+        # Automatically started by the user's first audio.
+        await message.reply_text(
+            "🎶 <b>Audio Merge Started</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Your first song triggered the merge session "
+            "and will be added now.\n\n"
+            "⚠️ All songs must be the <b>same type</b> "
+            "(all <code>m4a</code>, <code>mp3</code>, or <code>wav</code>).\n\n"
+            "Send more songs, one by one.\n"
+            "When finished, send /merge_now\n"
+            "To stop, send /cancel",
+            parse_mode=ParseMode.HTML,
+        )
+
+        # Add the triggering audio as song #1.
+        return await receive_audio(update, context)
+
+    # Normal /merge command flow.
     await message.reply_text(
         "🎶 <b>Audio Merge</b>\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -235,6 +279,7 @@ async def receive_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         "Send more songs, or /merge_now when finished.",
         parse_mode=ParseMode.HTML,
         do_quote=True,
+        reply_markup=merge_keyboard(),
     )
     # `count` is saved before the await above, so the log shows the real number
     RanaLogger.info(
@@ -516,17 +561,25 @@ merge_audio_conversation_handler = ConversationHandler(
     entry_points=[
         CommandHandler(
             [
+                "m",
                 "merge",
                 "merge_audio",
                 "merge_song",
                 "merge_songs",
             ],
             merge_start,
-        )
+        ),
+        MessageHandler(
+            filters.AUDIO,
+            merge_start,
+        ),
     ],
     states={
         COLLECTING: [
-            MessageHandler(filters.AUDIO, receive_audio),
+            MessageHandler(
+                filters.AUDIO,
+                receive_audio,
+            ),
             CommandHandler(
                 "merge_now",
                 merge_now,
@@ -538,11 +591,16 @@ merge_audio_conversation_handler = ConversationHandler(
                 | filters.VIDEO_NOTE,
                 receive_unsupported,
             ),
-            # any other non-command message (text, photo, sticker...)
-            MessageHandler(~filters.COMMAND, receive_other),
+            MessageHandler(
+                ~filters.COMMAND,
+                receive_other,
+            ),
         ],
     },
-    fallbacks=[CommandHandler("cancel", merge_cancel)],
-    # Pressing /merge again while collecting restarts the flow:
-    allow_reentry=True,
+    fallbacks=[
+        CommandHandler(
+            "cancel",
+            merge_cancel,
+        )
+    ],
 )
