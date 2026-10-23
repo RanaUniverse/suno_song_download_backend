@@ -45,6 +45,7 @@ from telegram.ext import (
 import imageio_ffmpeg  # type: ignore
 
 
+from app.bot_tg.config import StickerFileId
 from app.config import settings
 from app.shared.logger_related import RanaLogger
 
@@ -65,6 +66,8 @@ MERGE_WORK_DIR = settings.audio_merge.work_dir
 # Keys used inside context.user_data
 KEY_FILES = "merge_files"  # list[MergeItem]
 KEY_MIME = "merge_mime"  # mime type of the first accepted audio
+KEY_MSG_IDS = "merge_audio_reply_id"
+# list[ids] this will delete after user will submit merge
 
 UNSUPPORTED_TEXT = (
     "❌ <b>This file is not supported here.</b>\n"
@@ -89,9 +92,6 @@ DownloadedCallback = Callable[[int, int, "MergeItem"], Awaitable[None]]
 MergingCallback = Callable[[], Awaitable[None]]
 
 
-# ---------------------------------------------------------------------------
-# Small helpers
-# ---------------------------------------------------------------------------
 def merge_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
@@ -135,10 +135,17 @@ def format_size(size: int | None) -> str:
     return f"{size / (1024 * 1024):.2f} MB"
 
 
-def get_files(context: ContextTypes.DEFAULT_TYPE) -> list[MergeItem]:
+def get_files(
+    context: ContextTypes.DEFAULT_TYPE,
+) -> list[MergeItem]:
     if context.user_data is None:
-        raise RuntimeWarning("Context should be present")
-    return context.user_data.setdefault(KEY_FILES, [])
+        raise RuntimeWarning(
+            "Context should be present",
+        )
+    return context.user_data.setdefault(
+        KEY_FILES,
+        [],
+    )
 
 
 def clear_merge_data(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -237,16 +244,16 @@ async def receive_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         return COLLECTING
 
     # 2) same type check (compare mime type of the first accepted song)
-    first_mime = context.user_data.get(KEY_MIME)
-    if first_mime is not None and audio.mime_type != first_mime:
-        await message.reply_text(
-            "❌ <b>Different audio type.</b>\n"
-            f"Your first song is <code>{html.escape(str(first_mime))}</code> but "
-            f"this one is <code>{html.escape(str(audio.mime_type))}</code>.\n"
-            "Please send only the same type.",
-            do_quote=True,
-        )
-        return COLLECTING
+    # first_mime = context.user_data.get(KEY_MIME)
+    # if first_mime is not None and audio.mime_type != first_mime:
+    #     await message.reply_text(
+    #         "❌ <b>Different audio type.</b>\n"
+    #         f"Your first song is <code>{html.escape(str(first_mime))}</code> but "
+    #         f"this one is <code>{html.escape(str(audio.mime_type))}</code>.\n"
+    #         "Please send only the same type.",
+    #         do_quote=True,
+    #     )
+    #     return COLLECTING
 
     # 3) duplicate check
     # for now i will allow to merge same songs again and again
@@ -262,15 +269,15 @@ async def receive_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     # 5) accept
     # NOTE: no `await` between the checks above and this append, so with
     # concurrent_updates the order of an album is kept.
-    if first_mime is None:
-        context.user_data[KEY_MIME] = audio.mime_type
+    # if first_mime is None:
+    #     context.user_data[KEY_MIME] = audio.mime_type
 
     files.append(audio_to_item(audio))
     count = len(files)
     running_total = sum(f.duration for f in files)
     name = files[-1].file_name
 
-    await message.reply_text(
+    audio_reply = await message.reply_text(
         f"✅ <b>Added #{count}</b>\n"
         f"├ <b>Name:</b> {html.escape(name)}\n"
         f"├ <b>Type:</b> <code>{html.escape(str(audio.mime_type))}</code>\n"
@@ -282,11 +289,11 @@ async def receive_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         do_quote=True,
         reply_markup=merge_keyboard(),
     )
-    # `count` is saved before the await above, so the log shows the real number
-    RanaLogger.info(
-        f"merge: added file_id={audio.file_id} chat_id={message.chat_id} "
-        f"count={count}"
-    )
+    msg_id = audio_reply.message_id
+    merge_msg_ids = context.user_data.setdefault(KEY_MSG_IDS, [])
+
+    if msg_id not in merge_msg_ids:
+        merge_msg_ids.append(msg_id)
     return COLLECTING
 
 
@@ -321,6 +328,25 @@ async def receive_other(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     return COLLECTING
 
 
+async def delete_merge_messages(
+    bot: Bot,
+    chat_id: int,
+    message_ids: list[int],
+) -> None:
+    """Delete tracked messages without interrupting the merge flow."""
+    for message_id in message_ids:
+        try:
+            await bot.delete_message(
+                chat_id=chat_id,
+                message_id=message_id,
+            )
+        except Exception as error:
+            RanaLogger.info(
+                f"merge: could not delete message "
+                f"{message_id} in chat {chat_id}: {error}"
+            )
+
+
 async def merge_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     /merge_now : download all songs (with progress), merge, show result.
@@ -328,6 +354,10 @@ async def merge_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     message = update.effective_message
     user = update.effective_user
     if message is None or user is None:
+        return ConversationHandler.END
+
+    if context.user_data is None:
+        RanaLogger.warning("i think the context.userdata will be a value")
         return ConversationHandler.END
 
     files = list(get_files(context))  # snapshot
@@ -342,6 +372,7 @@ async def merge_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         #         RanaLogger.info(
         #             f"merge: could not delete button message: {error}"
         #         )
+
     if len(files) < MIN_FILES_TO_MERGE:
         await message.reply_text(
             f"⚠️ Send at least {MIN_FILES_TO_MERGE} songs first "
@@ -374,11 +405,20 @@ async def merge_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await safe_edit(status, header + "\n\n" + "\n".join(downloaded_lines))
 
     async def on_merging() -> None:
-        await safe_edit(
-            status,
+        await message.reply_text(
             "🔀 <b>Merging now...</b>\n"
             "This will take a little time, please wait.\n\n"
-            + "\n".join(downloaded_lines),
+        )
+        await message.reply_sticker(StickerFileId.LOADING_ROUNDED)
+        await delete_merge_messages(
+            context.bot,
+            user.id,
+            list(
+                context.user_data.get(
+                    KEY_MSG_IDS,
+                    [],
+                )
+            ),
         )
 
     try:

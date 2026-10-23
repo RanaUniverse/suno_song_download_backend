@@ -387,10 +387,10 @@ class Settings(BaseSettings):
 
     app: WebAppSettings
     otp: OTPSettings
+    redis: RedisSettings
     mail: MailSettings = Field(repr=False)
     db: DatabaseSettings = Field(default_factory=DatabaseSettings)
     audio_merge: AudioMergeSettings = Field(default_factory=AudioMergeSettings)
-    redis: RedisSettings
     suno: SunoSettings = Field(default_factory=SunoSettings)
 
     model_config = SettingsConfigDict(
