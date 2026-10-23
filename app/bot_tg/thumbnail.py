@@ -11,10 +11,12 @@ from app.config import settings
 
 def get_audio_thumbnail(
     # song_data: SongInfo,
-    audio_path: Path,
+    audio_path: Path | None = None,
 ) -> Path | None:
     """
     Select the thumbnail to use when sending audio through Telegram.
+    If audio_path is None -> and it wanted to use another songs it will send
+    brand logo
 
     Returns:
         Path: The selected thumbnail image.
@@ -35,16 +37,16 @@ def get_audio_thumbnail(
         return None
 
     if mode == "song":
+        brand_path = settings.bot.audio_thumbnail_brand_path
         # if the structer of the image will change i will need
         # below line to change later
-        song_thumbnail = audio_path.with_suffix(".jpeg")
+        song_thumbnail = audio_path.with_suffix(".jpeg") if audio_path else brand_path
 
         if song_thumbnail.is_file():
             return song_thumbnail
 
         # If the song thumbnail is unavailable, fall back
         # to the brand logo.
-        brand_path = settings.bot.audio_thumbnail_brand_path
 
         if brand_path.is_file():
             return brand_path

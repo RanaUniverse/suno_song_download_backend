@@ -50,6 +50,7 @@ from app.config import settings
 from app.shared.logger_related import RanaLogger
 
 from .audio import format_duration, forward_song_to_channel
+from .thumbnail import get_audio_thumbnail
 
 #
 
@@ -404,8 +405,11 @@ async def merge_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
         await safe_edit(status, header + "\n\n" + "\n".join(downloaded_lines))
 
+    merging_message: Message | None = None
+
     async def on_merging() -> None:
-        await message.reply_text(
+        nonlocal merging_message
+        merging_message = await message.reply_text(
             "🔀 <b>Merging now...</b>\n"
             "This will take a little time, please wait.\n\n"
         )
@@ -458,7 +462,7 @@ async def merge_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
 
     # ---- LATER: send the merged song to the user ------------------------
-    await context.bot.send_message(
+    upload_text = await context.bot.send_message(
         chat_id=user.id,
         text="Your Songs is Uploading Now...",
     )
@@ -469,17 +473,28 @@ async def merge_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         audio_msg = await message.reply_audio(
             audio=f,
             duration=total_seconds,
+            thumbnail=get_audio_thumbnail(),
+            caption=(
+                "🎧 <b>Your Merged Songs Are Ready!</b>\n\n"
+                "📥 Download your songs and enjoy listening anytime.\n"
+                "🎵 High-quality audio, merged just for you!\n\n"
+            ),
         )
-        user_mention = (
-            f'<a href="tg://user?id={user.id}">' f"{html.escape(user.full_name)}</a>"
-        )
-        await forward_song_to_channel(
-            context=context,
-            audio_file_id=audio_msg.audio.file_id,
-            user_name=f"{user_mention}",
-        )
+        if audio_msg.audio:
+            user_mention = (
+                f'<a href="tg://user?id={user.id}">'
+                f"{html.escape(user.full_name)}</a>"
+            )
+            await forward_song_to_channel(
+                context=context,
+                audio_file_id=audio_msg.audio.file_id,
+                user_name=f"{user_mention}",
+            )
 
     await light_sticker.delete()
+    await upload_text.delete()
+    if merging_message:
+        await merging_message.delete()
 
     # ----------------------------------------------------------------------
 
