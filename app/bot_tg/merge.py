@@ -31,7 +31,6 @@ from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
-from telegram.constants import ParseMode
 from telegram.error import BadRequest
 from telegram.ext import (
     CallbackQueryHandler,
@@ -46,6 +45,7 @@ from telegram.ext import (
 import imageio_ffmpeg  # type: ignore
 
 
+from app.config import settings
 from app.shared.logger_related import RanaLogger
 
 from .audio import format_duration
@@ -56,10 +56,11 @@ FFMPEG_EXE: str = imageio_ffmpeg.get_ffmpeg_exe()
 
 COLLECTING = 0
 
-MIN_FILES_TO_MERGE = 2
-MAX_FILES_TO_MERGE = 20
+MIN_FILES_TO_MERGE = settings.audio_merge.min_files
+MAX_FILES_TO_MERGE = settings.audio_merge.max_files
 
-MERGE_WORK_DIR = Path("downloads") / "merge"
+MERGE_WORK_DIR = settings.audio_merge.work_dir
+
 
 # Keys used inside context.user_data
 KEY_FILES = "merge_files"  # list[MergeItem]
@@ -185,6 +186,12 @@ async def merge_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     if message is None:
         return ConversationHandler.END
 
+    if not settings.audio_merge.enabled:
+        await message.reply_text(
+            text="🚫 🎵 Audio merging is currently disabled. Please try again later.",
+        )
+        return ConversationHandler.END
+
     clear_merge_data(context)  # always start fresh
     method_text = (
         "🎶 <b>Audio Merge</b>\n"
@@ -237,7 +244,6 @@ async def receive_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             f"Your first song is <code>{html.escape(str(first_mime))}</code> but "
             f"this one is <code>{html.escape(str(audio.mime_type))}</code>.\n"
             "Please send only the same type.",
-            parse_mode=ParseMode.HTML,
             do_quote=True,
         )
         return COLLECTING
@@ -273,7 +279,6 @@ async def receive_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         f"└ <b>Total so far:</b> {format_duration(running_total)} "
         f"({count} songs)\n\n"
         "Send more songs, or /merge_now when finished.",
-        parse_mode=ParseMode.HTML,
         do_quote=True,
         reply_markup=merge_keyboard(),
     )
@@ -298,7 +303,6 @@ async def receive_unsupported(
 
     await message.reply_text(
         UNSUPPORTED_TEXT,
-        parse_mode=ParseMode.HTML,
         do_quote=True,
     )
     return COLLECTING

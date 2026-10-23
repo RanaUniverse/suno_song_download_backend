@@ -285,6 +285,32 @@ class SongSettings(BaseModel):
     )
 
 
+class AudioMergeSettings(BaseModel):
+    """Configuration for merging audio files in Telegram."""
+
+    enabled: bool = Field(
+        default=True,
+        description="Whether audio merging is enabled.",
+    )
+
+    min_files: int = Field(
+        default=2,
+        ge=2,
+        description="Minimum number of audio files required for merging.",
+    )
+
+    max_files: int = Field(
+        default=20,
+        ge=2,
+        description="Maximum number of audio files allowed in one merge.",
+    )
+
+    work_dir: Path = Field(
+        default=Path("downloads/merge_audio"),
+        description="Directory used to store temporary merge files.",
+    )
+
+
 class PathSettings(BaseModel):
     log_filename: str = "LogFile.log"
     data_foldername: str = "data"
@@ -363,6 +389,7 @@ class Settings(BaseSettings):
     otp: OTPSettings
     mail: MailSettings = Field(repr=False)
     db: DatabaseSettings = Field(default_factory=DatabaseSettings)
+    audio_merge: AudioMergeSettings = Field(default_factory=AudioMergeSettings)
     redis: RedisSettings
     suno: SunoSettings = Field(default_factory=SunoSettings)
 
