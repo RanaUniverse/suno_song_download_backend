@@ -17,7 +17,7 @@ or duration == 0) is rejected with a quoted reply.
 import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import timedelta, datetime
 import html
 from pathlib import Path
 import re
@@ -52,7 +52,6 @@ from .audio import format_duration
 
 #
 
-
 FFMPEG_EXE: str = imageio_ffmpeg.get_ffmpeg_exe()
 
 COLLECTING = 0
@@ -72,6 +71,8 @@ UNSUPPORTED_TEXT = (
     "add it to the merge.\n\n"
     "Please use this bot to download the songs first "
     "and then merge them, or use the <b>premium features</b>."
+    "Please Don't Send This Type of File Next Time\n"
+    "Only Send the songs which has duration in the telegram app."
 )
 
 # ffmpeg encoder settings by OUTPUT extension.
@@ -112,7 +113,6 @@ def merge_keyboard() -> InlineKeyboardMarkup:
 @dataclass(frozen=True, slots=True)
 class MergeItem:
     file_id: str
-    file_unique_id: str
     file_name: str
     duration: int
 
@@ -154,7 +154,6 @@ def audio_to_item(audio: Audio) -> MergeItem:
     """
     return MergeItem(
         file_id=audio.file_id,
-        file_unique_id=audio.file_unique_id,
         file_name=audio.file_name or audio.file_unique_id,
         duration=to_seconds(audio.duration),
     )
@@ -165,7 +164,7 @@ async def safe_edit(message: Message, text: str) -> None:
     Edit a message, ignore harmless errors (like 'message is not modified').
     """
     try:
-        await message.edit_text(text, parse_mode=ParseMode.HTML)
+        await message.edit_text(text)
     except BadRequest as error:
         if "not modified" not in str(error).lower():
             RanaLogger.info(f"merge: edit_text failed: {error}")
@@ -180,33 +179,14 @@ async def merge_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     """
     Entry point:
     /merge or /merge_audio or /m
+    or Sending A Audio File to the Bot
     """
     message = update.effective_message
     if message is None:
         return ConversationHandler.END
 
     clear_merge_data(context)  # always start fresh
-
-    if message.audio is not None:
-        # Automatically started by the user's first audio.
-        await message.reply_text(
-            "🎶 <b>Audio Merge Started</b>\n"
-            "━━━━━━━━━━━━━━━━━━━━\n\n"
-            "Your first song triggered the merge session "
-            "and will be added now.\n\n"
-            "⚠️ All songs must be the <b>same type</b> "
-            "(all <code>m4a</code>, <code>mp3</code>, or <code>wav</code>).\n\n"
-            "Send more songs, one by one.\n"
-            "When finished, send /merge_now\n"
-            "To stop, send /cancel",
-            parse_mode=ParseMode.HTML,
-        )
-
-        # Add the triggering audio as song #1.
-        return await receive_audio(update, context)
-
-    # Normal /merge command flow.
-    await message.reply_text(
+    method_text = (
         "🎶 <b>Audio Merge</b>\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
         "Send me the songs you want to merge, one by one.\n"
@@ -214,9 +194,16 @@ async def merge_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         "(all <code>m4a</code>, or all <code>mp3</code>, or all <code>wav</code>).\n\n"
         "Send them as <b>Telegram audio</b> (not as a file/document).\n\n"
         "When you are done send /merge_now\n"
-        "To stop send /cancel",
-        parse_mode=ParseMode.HTML,
+        "To stop send /cancel"
     )
+    if message.audio is not None:
+        # Automatically started by the user's first audio.
+        await message.reply_text(method_text)
+
+        return await receive_audio(update, context)
+
+    # Normal /merge command flow.
+    await message.reply_text(method_text)
     return COLLECTING
 
 
@@ -238,7 +225,6 @@ async def receive_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     if duration <= 0:
         await message.reply_text(
             UNSUPPORTED_TEXT,
-            parse_mode=ParseMode.HTML,
             do_quote=True,
         )
         return COLLECTING
@@ -341,16 +327,24 @@ async def merge_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
 
     files = list(get_files(context))  # snapshot
-
+    query = update.callback_query
+    if query is not None:
+        await query.answer("Starting Audio Merge...")
+        # Delete the message containing the Merge button.
+        # if isinstance(query.message, Message):
+        #     try:
+        #         await query.message.delete()
+        #     except BadRequest as error:
+        #         RanaLogger.info(
+        #             f"merge: could not delete button message: {error}"
+        #         )
     if len(files) < MIN_FILES_TO_MERGE:
         await message.reply_text(
             f"⚠️ Send at least {MIN_FILES_TO_MERGE} songs first "
             f"(you have {len(files)}).",
         )
-        return COLLECTING  # stay in the conversation
+        return COLLECTING
 
-    # Clear NOW: while we download/merge the user can't add songs to this list,
-    # and the conversation ends right after.
     clear_merge_data(context)
 
     total_seconds = sum(f.duration for f in files)
@@ -362,8 +356,12 @@ async def merge_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     downloaded_lines: list[str] = []
 
-    async def on_downloaded(index: int, total: int, item: MergeItem) -> None:
-        downloaded_lines.append(f"✅ {index}. {html.escape(item.file_name)}")
+    async def on_downloaded(
+        index: int,
+        total: int,
+        item: MergeItem,
+    ) -> None:
+        downloaded_lines.append(f"✅ {index}. {html.escape(item.file_name)}\n")
         header = (
             f"📥 <b>Downloading songs</b> ({index}/{total})"
             if index < total
@@ -428,6 +426,10 @@ async def merge_cancel(
     /cancel : forget everything.
     """
     message = update.effective_message
+    query = update.callback_query
+    if query is not None:
+        await query.answer("Canceling Your Request...")
+
     clear_merge_data(context)
     if message is not None:
         await message.reply_text(
@@ -553,7 +555,8 @@ async def download_and_merge(
         shutil.rmtree(work_dir)
 
     paths = await download_audio_files(bot, items, work_dir, on_downloaded)
-    output_path = work_dir / f"merged{paths[0].suffix}"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_path = work_dir / f"merged_songs_{timestamp}{paths[0].suffix}"
 
     if on_merging is not None:
         await on_merging()
@@ -607,6 +610,14 @@ merge_audio_conversation_handler = ConversationHandler(
             MessageHandler(
                 ~filters.COMMAND,
                 receive_other,
+            ),
+            CallbackQueryHandler(
+                merge_now,
+                pattern=r"^merge_now$",
+            ),
+            CallbackQueryHandler(
+                merge_cancel,
+                pattern=r"^merge_cancel$",
             ),
         ],
     },

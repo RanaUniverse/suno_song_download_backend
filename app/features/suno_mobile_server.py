@@ -276,6 +276,7 @@ async def api_download(
                 info.title,
                 res.format,
                 duration_formatted,
+                int(info.duration_in_seconds if info.duration_in_seconds else 0),
             )
         )
 

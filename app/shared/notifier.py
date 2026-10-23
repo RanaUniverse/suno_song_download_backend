@@ -25,7 +25,8 @@ from app.config import settings
 from app.shared.logger_related import RanaLogger
 
 IST = ZoneInfo("Asia/Kolkata")
-
+BASE_DIR = Path(__file__).resolve().parents[2]
+BROWSER_LOGO_PATH = BASE_DIR / "static" / "BrowserLogoForThumbnail.png"
 
 # from telegram import Bot
 # _bot: Bot | None = None
@@ -237,6 +238,7 @@ async def forward_song_to_group(
     title: str,
     fmt: str,
     duration_text: str,
+    duration_in_seconds: int,
 ) -> None:
     if not settings.bot.web_download_notify_enabled:
         return
@@ -273,6 +275,8 @@ async def forward_song_to_group(
                 audio=f,
                 title=(title or "")[:64],
                 caption=caption,
+                thumbnail=BROWSER_LOGO_PATH,
+                duration=duration_in_seconds,
             )
     except (TelegramError, OSError) as e:
         RanaLogger.warning(f"Song upload to group {group_id} failed: {e}")
