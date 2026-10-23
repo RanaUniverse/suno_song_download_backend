@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 import html
 from pathlib import Path
+import re
 import shutil
 
 from telegram import (
@@ -517,27 +518,24 @@ async def merge_with_ffmpeg(paths: list[Path], output_path: Path) -> Path:
     return output_path
 
 
-async def probe_duration(path: Path) -> float | None:
-    """
-    Real duration of a file in seconds (ffprobe), to check the merge result.
-    """
+_DURATION_RE = re.compile(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)")
+
+
+async def probe_duration(path: Path) -> float:
     process = await asyncio.create_subprocess_exec(
-        "ffprobe",
-        "-v",
-        "error",
-        "-show_entries",
-        "format=duration",
-        "-of",
-        "default=noprint_wrappers=1:nokey=1",
+        FFMPEG_EXE,
+        "-hide_banner",
+        "-i",
         str(path),
-        stdout=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.DEVNULL,
         stderr=asyncio.subprocess.PIPE,
     )
-    stdout, _ = await process.communicate()
-    try:
-        return float(stdout.decode().strip())
-    except ValueError:
-        return None
+    _, stderr = await process.communicate()
+    match = _DURATION_RE.search(stderr.decode(errors="ignore"))
+    if not match:
+        raise RuntimeError(f"Could not read duration of {path}")
+    hours, minutes, seconds = match.groups()
+    return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
 
 
 async def download_and_merge(
