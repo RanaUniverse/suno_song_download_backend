@@ -43,7 +43,6 @@ from .text_formatter import (
     generate_non_suno_link_received_text,
     generate_wrong_suno_link_received_text,
     generate_no_link_received_text,
-    generate_song_details_only,
 )
 
 from .keyboards import (
@@ -57,13 +56,13 @@ from app.config import settings
 
 from app.features.suno.service import download_suno_song
 
+from .audio import forward_song_to_channel
 from .thumbnail import get_audio_thumbnail
 
 # #
 
 
 BOT_TOKEN = settings.bot.token.get_secret_value()
-SONG_FORWARD_GROUP_ID = settings.bot.song_forward_group_id
 
 
 async def caps(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -291,48 +290,3 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
             caption,
             do_quote=True,
         )
-
-
-async def forward_song_to_channel(
-    context: ContextTypes.DEFAULT_TYPE,
-    audio_file_id: str,
-    song_data: SongInfo,
-    user_name: str,
-) -> bool:
-    """
-    Forward an already-uploaded Telegram audio file to the configured
-    song channel.
-
-    Returns:
-        True: song was successfully sent
-        False: forwarding was skipped or failed
-    """
-
-    # Forwarding is disabled/not configured
-    if not SONG_FORWARD_GROUP_ID:
-        RanaLogger.info("Song forwarding is disabled: no channel ID configured.")
-        return False
-
-    try:
-        await context.bot.send_audio(
-            chat_id=SONG_FORWARD_GROUP_ID,
-            audio=audio_file_id,
-            caption=(
-                f"🎵 <b>Song downloaded by:</b> {user_name}\n\n"
-                f"{generate_song_details_only(song_data)}\n"
-            ),
-        )
-
-        RanaLogger.info(
-            f"Song successfully forwarded to channel. "
-            f"channel_id={SONG_FORWARD_GROUP_ID}, "
-            f"file_id={audio_file_id}"
-        )
-
-        return True
-
-    except TelegramError as e:
-        RanaLogger.warning(
-            f"Failed to forward song to channel " f"{SONG_FORWARD_GROUP_ID}: {e}"
-        )
-        return False

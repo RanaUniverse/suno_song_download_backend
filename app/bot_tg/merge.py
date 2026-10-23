@@ -49,7 +49,7 @@ from app.bot_tg.config import StickerFileId
 from app.config import settings
 from app.shared.logger_related import RanaLogger
 
-from .audio import format_duration
+from .audio import format_duration, forward_song_to_channel
 
 #
 
@@ -409,7 +409,10 @@ async def merge_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             "🔀 <b>Merging now...</b>\n"
             "This will take a little time, please wait.\n\n"
         )
-        await message.reply_sticker(StickerFileId.LOADING_ROUNDED)
+        if context.user_data is None:
+            RanaLogger.warning("This time the context.userdata should exists")
+            return
+
         await delete_merge_messages(
             context.bot,
             user.id,
@@ -420,6 +423,10 @@ async def merge_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                 )
             ),
         )
+
+    loading_sticker = await message.reply_sticker(
+        StickerFileId.LOADING_ROUNDED,
+    )
 
     try:
         output_path = await download_and_merge(
@@ -455,8 +462,25 @@ async def merge_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         chat_id=user.id,
         text="Your Songs is Uploading Now...",
     )
+    await loading_sticker.delete()
+    light_sticker = await message.reply_sticker(StickerFileId.LIGHTNING)
+
     with output_path.open("rb") as f:
-        await message.reply_audio(audio=f, duration=total_seconds)
+        audio_msg = await message.reply_audio(
+            audio=f,
+            duration=total_seconds,
+        )
+        user_mention = (
+            f'<a href="tg://user?id={user.id}">' f"{html.escape(user.full_name)}</a>"
+        )
+        await forward_song_to_channel(
+            context=context,
+            audio_file_id=audio_msg.audio.file_id,
+            user_name=f"{user_mention}",
+        )
+
+    await light_sticker.delete()
+
     # ----------------------------------------------------------------------
 
     return ConversationHandler.END

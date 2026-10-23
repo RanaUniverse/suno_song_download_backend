@@ -15,9 +15,19 @@ from telegram import (
     Message,
 )
 
+from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
+from app.config import settings
+from app.features.suno.models import SongInfo
 from app.shared.logger_related import RanaLogger
+
+from .text_formatter import (
+    generate_song_details_only,
+)
+
+#
+SONG_FORWARD_GROUP_ID = settings.bot.song_forward_group_id
 
 
 def format_file_size(size: int | None) -> str:
@@ -160,3 +170,48 @@ async def audio_handler(
             f"Failed to send audio metadata for chat_id={message.chat_id}"
         )
         raise
+
+
+async def forward_song_to_channel(
+    context: ContextTypes.DEFAULT_TYPE,
+    audio_file_id: str,
+    user_name: str,
+    song_data: SongInfo | None = None,
+) -> bool:
+    """
+    Forward an already-uploaded Telegram audio file to the configured
+    song channel.
+
+    Returns:
+        True: song was successfully sent
+        False: forwarding was skipped or failed
+    """
+
+    # Forwarding is disabled/not configured
+    if not SONG_FORWARD_GROUP_ID:
+        RanaLogger.info("Song forwarding is disabled: no channel ID configured.")
+        return False
+
+    try:
+        await context.bot.send_audio(
+            chat_id=SONG_FORWARD_GROUP_ID,
+            audio=audio_file_id,
+            caption=(
+                f"🎵 <b>Song downloaded by:</b> {user_name}\n\n"
+                f"{generate_song_details_only(song_data) if song_data else ''}\n"
+            ),
+        )
+
+        RanaLogger.info(
+            f"Song successfully forwarded to channel. "
+            f"channel_id={SONG_FORWARD_GROUP_ID}, "
+            f"file_id={audio_file_id}"
+        )
+
+        return True
+
+    except TelegramError as e:
+        RanaLogger.warning(
+            f"Failed to forward song to channel " f"{SONG_FORWARD_GROUP_ID}: {e}"
+        )
+        return False
