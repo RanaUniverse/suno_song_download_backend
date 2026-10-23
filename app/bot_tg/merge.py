@@ -260,6 +260,7 @@ async def receive_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     # for now i will allow to merge same songs again and again
 
     # 4) limit
+
     if len(files) >= MAX_FILES_TO_MERGE:
         await message.reply_text(
             f"⚠️ Maximum {MAX_FILES_TO_MERGE} songs allowed. Send /merge_now",
@@ -277,20 +278,24 @@ async def receive_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     count = len(files)
     running_total = sum(f.duration for f in files)
     name = files[-1].file_name
+    msg_id = 0
 
-    audio_reply = await message.reply_text(
-        f"✅ <b>Added #{count}</b>\n"
-        f"├ <b>Name:</b> {html.escape(name)}\n"
-        f"├ <b>Type:</b> <code>{html.escape(str(audio.mime_type))}</code>\n"
-        f"├ <b>Duration:</b> {format_duration(duration)}\n"
-        f"├ <b>Size:</b> {format_size(audio.file_size)}\n"
-        f"└ <b>Total so far:</b> {format_duration(running_total)} "
-        f"({count} songs)\n\n"
-        "Send more songs, or /merge_now when finished.",
-        do_quote=True,
-        reply_markup=merge_keyboard(),
-    )
-    msg_id = audio_reply.message_id
+    if settings.audio_merge.inform_each_audio_received:
+        print("xxxxxxxxxxxxxx")
+        audio_reply = await message.reply_text(
+            f"✅ <b>Added #{count}</b>\n"
+            f"├ <b>Name:</b> {html.escape(name)}\n"
+            f"├ <b>Type:</b> <code>{html.escape(str(audio.mime_type))}</code>\n"
+            f"├ <b>Duration:</b> {format_duration(duration)}\n"
+            f"├ <b>Size:</b> {format_size(audio.file_size)}\n"
+            f"└ <b>Total so far:</b> {format_duration(running_total)} "
+            f"({count} songs)\n\n"
+            "Send more songs, or /merge_now when finished.",
+            do_quote=True,
+            reply_markup=merge_keyboard(),
+        )
+        msg_id = audio_reply.message_id
+
     merge_msg_ids = context.user_data.setdefault(KEY_MSG_IDS, [])
 
     if msg_id not in merge_msg_ids:

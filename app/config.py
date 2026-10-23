@@ -309,6 +309,11 @@ class AudioMergeSettings(BaseModel):
         default=Path("downloads/merge_audio"),
         description="Directory used to store temporary merge files.",
     )
+    inform_each_audio_received: bool = Field(
+        default=True,
+        description="it wil say if on merge songs case it will send the song "
+        "details at first or not",
+    )
 
 
 class PathSettings(BaseModel):
