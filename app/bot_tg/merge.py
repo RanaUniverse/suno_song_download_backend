@@ -526,7 +526,7 @@ async def merge_cancel(
 # ---------------------------------------------------------------------------
 
 
-async def download_audio_files(
+async def download_audio_files1(
     bot: Bot,
     items: list[MergeItem],
     work_dir: Path,
@@ -556,6 +556,54 @@ async def download_audio_files(
             await on_downloaded(index, total, item)
 
     return paths
+
+
+async def download_audio_files(
+    bot: Bot,
+    items: list[MergeItem],
+    work_dir: Path,
+    on_downloaded: DownloadedCallback | None = None,
+) -> list[Path]:
+    """
+    Download audio files concurrently while preserving their original order.
+    """
+    work_dir.mkdir(parents=True, exist_ok=True)
+
+    total = len(items)
+    semaphore = asyncio.Semaphore(4)
+    callback_lock = asyncio.Lock()
+
+    async def download_one(
+        index: int,
+        item: MergeItem,
+    ) -> Path:
+        async with semaphore:
+            tg_file = await bot.get_file(item.file_id)
+
+            suffix = (
+                Path(item.file_name).suffix
+                or Path(tg_file.file_path or "").suffix
+                or ".m4a"
+            )
+
+            target = work_dir / f"{index:03}{suffix}"
+
+            await tg_file.download_to_drive(custom_path=target)
+
+        # Serialize progress updates to avoid concurrent message edits.
+        if on_downloaded is not None:
+            async with callback_lock:
+                await on_downloaded(index, total, item)
+
+        return target
+
+    # Start all download tasks concurrently (maximum 4 active downloads).
+    paths = await asyncio.gather(
+        *(download_one(index, item) for index, item in enumerate(items, start=1))
+    )
+
+    # asyncio.gather preserves input order in its returned results.
+    return list(paths)
 
 
 async def merge_with_ffmpeg(paths: list[Path], output_path: Path) -> Path:
