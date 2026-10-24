@@ -724,10 +724,10 @@ merge_audio_conversation_handler = ConversationHandler(
             ],
             merge_start,
         ),
-        MessageHandler(
-            filters.AUDIO,
-            merge_start,
-        ),
+        # MessageHandler(
+        #     filters.AUDIO,
+        #     merge_start,
+        # ),
     ],
     states={
         COLLECTING: [
