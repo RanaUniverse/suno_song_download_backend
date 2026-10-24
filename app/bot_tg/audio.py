@@ -177,6 +177,7 @@ async def forward_song_to_channel(
     audio_file_id: str,
     user_name: str,
     song_data: SongInfo | None = None,
+    is_merge_audio: bool = False,
 ) -> bool:
     """
     Forward an already-uploaded Telegram audio file to the configured
@@ -193,13 +194,18 @@ async def forward_song_to_channel(
         return False
 
     try:
-        await context.bot.send_audio(
-            chat_id=SONG_FORWARD_GROUP_ID,
-            audio=audio_file_id,
-            caption=(
+        if is_merge_audio:
+            caption = f"This Song is Merged By {user_name}"
+        else:
+            caption = (
                 f"🎵 <b>Song downloaded by:</b> {user_name}\n\n"
                 f"{generate_song_details_only(song_data) if song_data else ''}\n"
-            ),
+            )
+
+        await context.bot.send_audio(
+            audio=audio_file_id,
+            chat_id=SONG_FORWARD_GROUP_ID,
+            caption=caption,
         )
 
         RanaLogger.info(
