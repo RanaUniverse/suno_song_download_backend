@@ -281,7 +281,6 @@ async def receive_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     msg_id = 0
 
     if settings.audio_merge.inform_each_audio_received:
-        print("xxxxxxxxxxxxxx")
         audio_reply = await message.reply_text(
             f"✅ <b>Added #{count}</b>\n"
             f"├ <b>Name:</b> {html.escape(name)}\n"
@@ -422,16 +421,18 @@ async def merge_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             RanaLogger.warning("This time the context.userdata should exists")
             return
 
-        await delete_merge_messages(
-            context.bot,
-            user.id,
-            list(
-                context.user_data.get(
-                    KEY_MSG_IDS,
-                    [],
-                )
-            ),
-        )
+        if settings.audio_merge.inform_each_audio_received:
+
+            await delete_merge_messages(
+                context.bot,
+                user.id,
+                list(
+                    context.user_data.get(
+                        KEY_MSG_IDS,
+                        [],
+                    )
+                ),
+            )
 
     loading_sticker = await message.reply_sticker(
         StickerFileId.LOADING_ROUNDED,
