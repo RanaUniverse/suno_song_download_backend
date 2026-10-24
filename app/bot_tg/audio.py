@@ -178,6 +178,7 @@ async def forward_song_to_channel(
     user_name: str,
     song_data: SongInfo | None = None,
     is_merge_audio: bool = False,
+    merged_song_count: int | None = None,
 ) -> bool:
     """
     Forward an already-uploaded Telegram audio file to the configured
@@ -195,7 +196,11 @@ async def forward_song_to_channel(
 
     try:
         if is_merge_audio:
-            caption = f"This Song is Merged By {user_name}"
+            caption = (
+                f"🎧 <b>Merged Audio</b>\n\n"
+                f"👤 <b>Merged by:</b> {user_name}\n"
+                f"🎵 <b>Songs merged:</b> {merged_song_count or 'Unknown'}"
+            )
         else:
             caption = (
                 f"🎵 <b>Song downloaded by:</b> {user_name}\n\n"

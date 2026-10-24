@@ -495,6 +495,8 @@ async def merge_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                 context=context,
                 audio_file_id=audio_msg.audio.file_id,
                 user_name=f"{user_mention}",
+                is_merge_audio=True,
+                merged_song_count=total_count,
             )
 
     await light_sticker.delete()
