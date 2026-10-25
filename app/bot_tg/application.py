@@ -35,6 +35,15 @@ application = (
     .token(
         token=BOT_TOKEN,
     )
+    .base_url(
+        "http://localhost:8081/bot",
+    )
+    .base_file_url(
+        "http://localhost:8081/file/bot",
+    )
+    .local_mode(
+        True,
+    )
     .defaults(
         defaults=my_defaults,
     )

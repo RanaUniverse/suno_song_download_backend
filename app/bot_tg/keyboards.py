@@ -8,7 +8,7 @@ mostly will be created and kept here for easy access
 from urllib.parse import quote
 
 
-from telegram import InlineKeyboardButton
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import KeyboardButtonStyle
 
 
@@ -140,3 +140,19 @@ def generate_dynamic_keyboard(
     )
 
     return buttons
+
+
+def get_file_action_keyboard():
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "Edit this",
+                callback_data="edit_file_dummy",
+            ),
+            InlineKeyboardButton(
+                "Do something else",
+                callback_data="do_something_dummy",
+            ),
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)

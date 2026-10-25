@@ -30,6 +30,7 @@ from app.bot_tg.application import application
 from app.bot_tg.video_handler import get_video_file_id
 from app.bot_tg.audio import audio_handler
 from app.bot_tg.merge import merge_audio_conversation_handler
+from app.bot_tg.file_handler import handle_document_file
 
 if __name__ == "__main__":
 
@@ -66,10 +67,16 @@ if __name__ == "__main__":
             get_video_file_id,
         )
     )
+    # application.add_handler(
+    #     MessageHandler(
+    #         filters.AUDIO,
+    #         audio_handler,
+    #     )
+    # )
     application.add_handler(
         MessageHandler(
-            filters.AUDIO,
-            audio_handler,
+            filters.ATTACHMENT,
+            handle_document_file,
         )
     )
     application.run_polling()
