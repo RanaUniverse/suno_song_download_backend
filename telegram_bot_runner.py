@@ -67,12 +67,12 @@ if __name__ == "__main__":
             get_video_file_id,
         )
     )
-    # application.add_handler(
-    #     MessageHandler(
-    #         filters.AUDIO,
-    #         audio_handler,
-    #     )
-    # )
+    application.add_handler(
+        MessageHandler(
+            filters.AUDIO,
+            audio_handler,
+        )
+    )
     application.add_handler(
         MessageHandler(
             filters.ATTACHMENT,

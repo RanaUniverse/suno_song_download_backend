@@ -185,6 +185,38 @@ class DatabaseSettings(BaseModel):
             )
 
 
+class LocalBotApiSettings(BaseModel):
+    """
+    Settings for the self-hosted Telegram Bot API server.
+    When enabled=False the bot talks to api.telegram.org as normal.
+    """
+
+    enabled: bool = Field(
+        default=False,
+        description="Use my own local Bot API server instead of api.telegram.org",
+    )
+
+    server_url: str = Field(
+        default="http://localhost:8081",
+        description="Where the local Bot API server is reachable, no trailing slash. "
+        "In Docker compose with two containers this becomes http://telegram-bot-api:8081",
+    )
+
+    local_mode: bool = Field(
+        default=True,
+        description="True only if the bot can read the same filesystem as the "
+        "Bot API server (same machine, or a shared volume at the same path).",
+    )
+
+    @property
+    def base_url(self) -> str:
+        return f"{self.server_url.rstrip('/')}/bot"
+
+    @property
+    def base_file_url(self) -> str:
+        return f"{self.server_url.rstrip('/')}/file/bot"
+
+
 class BotSettings(BaseModel):
     """
     Bot Configuration Settings will be here defines the values
@@ -192,11 +224,24 @@ class BotSettings(BaseModel):
     """
 
     token: SecretStr
+    local_api: LocalBotApiSettings = Field(
+        default_factory=LocalBotApiSettings,
+    )
     username: str | None = Field(
         default=None,
         description="If I want to specefy the username of the bot i "
         "will write without the @ symbol",
     )
+    admin_chat_id: int | None = Field(
+        default=None,
+        description="This is the chat id of the admin where some notifications "
+        "will send at bot start and so on",
+    )
+
+    startup_notify_enabled: bool = Field(
+        default=True,
+    )
+
     start_image_file_id: str | None = Field(
         default=None,
         description="I want to shows user a basic startup message on "

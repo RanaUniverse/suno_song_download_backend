@@ -5,16 +5,18 @@ Here this will make the application object for this bot
 This application object will call in the main to run the bot there
 """
 
-from telegram.ext import ApplicationBuilder, Defaults
 from telegram.constants import ParseMode
+from telegram.ext import ApplicationBuilder, Defaults
 from telegram.request import HTTPXRequest
 
 
 from app.config import settings
+from app.bot_tg.startup import notify_admin_on_startup  # type: ignore
 
 #
 
 BOT_TOKEN = settings.bot.token.get_secret_value()
+local_api = settings.bot.local_api
 
 my_defaults = Defaults(
     parse_mode=ParseMode.HTML,
@@ -30,26 +32,28 @@ request = HTTPXRequest(
 )
 
 
-application = (
+builder = (
     ApplicationBuilder()
-    .token(
-        token=BOT_TOKEN,
-    )
-    .base_url(
-        "http://localhost:8081/bot",
-    )
-    .base_file_url(
-        "http://localhost:8081/file/bot",
-    )
-    .local_mode(
-        True,
-    )
     .defaults(
         defaults=my_defaults,
+    )
+    .token(
+        token=BOT_TOKEN,
     )
     .request(request)
     .concurrent_updates(
         concurrent_updates=10,
     )
-    .build()
+    .post_init(  # type: ignore #TODO
+        notify_admin_on_startup,
+    )
 )
+
+if local_api.enabled:
+    builder = (
+        builder.base_url(local_api.base_url)
+        .base_file_url(local_api.base_file_url)
+        .local_mode(True)
+    )
+
+application = builder.build()
