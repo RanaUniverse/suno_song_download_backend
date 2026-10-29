@@ -270,3 +270,15 @@ def generate_wrong_link_received_caption(
         "🎵 Please send a <b>Suno song link</b> if you'd like me to download the song."
     )
     return caption
+
+
+def get_not_logged_in_message() -> str:
+    return (
+        "🔒 You are not logged in.\n\n"
+        "Please log in to see your downloaded songs, "
+        "or buy Premium to unlock your personal download history."
+    )
+
+
+def get_downloads_count_message(count: int) -> str:
+    return f"🎵 You have {count} downloaded songs in your account."

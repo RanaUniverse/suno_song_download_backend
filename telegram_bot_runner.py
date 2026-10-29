@@ -31,7 +31,7 @@ from app.bot_tg.video_handler import get_video_file_id
 from app.bot_tg.audio import audio_handler
 from app.bot_tg.merge import merge_audio_conversation_handler
 from app.bot_tg.file_handler import handle_document_file
-
+from app.bot_tg.download_handlers import download_command
 if __name__ == "__main__":
 
     start_handler = CommandHandler("start", start_command)
@@ -78,5 +78,8 @@ if __name__ == "__main__":
             filters.ATTACHMENT,
             handle_document_file,
         )
+    )
+    application.add_handler(
+        CommandHandler('download',download_command)
     )
     application.run_polling()

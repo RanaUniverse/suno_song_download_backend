@@ -156,3 +156,21 @@ def get_file_action_keyboard():
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
+
+
+def generate_login_premium_keyboard() -> list[list[InlineKeyboardButton]]:
+    return [
+        [
+            InlineKeyboardButton(
+                "🔑 Login",
+                url="https://sunoaisongdownload.online/login",
+            ),
+            InlineKeyboardButton(
+                "💎 Buy Premium",
+                url="https://sunoaisongdownload.online/premium",
+            ),
+        ],
+        [
+            PAYPAL_Profile_Button,
+        ],
+    ]
