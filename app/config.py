@@ -22,15 +22,19 @@ from pydantic_settings import (
     SettingsConfigDict,
 )
 
-SUPPORTED_AUDIO_FORMAT = ("m4a", "mp3", "wav")
+SUPPORTED_AUDIO_FORMAT = (
+    "m4a",
+    "mp3",
+    "wav",
+)
 AudioFormat = Literal[
     "m4a",
     "mp3",
     "wav",
 ]
 ThumbnailMode = Literal[
-    "song",
     "brand",
+    "song",
     "none",
 ]
 
@@ -59,7 +63,7 @@ class WebAppSettings(BaseModel):
         "http://localhost:5500",
         "http://127.0.0.1:5500",
         "http://localhost:3000",
-        "https://SunoAisongDownload.online",
+        "https://SunoAiSongDownload.Online",
         "https://sunoaisongdownload.online",
         "https://www.sunoaisongdownload.online",
     ]
@@ -74,7 +78,10 @@ class MailAddressSettings(BaseModel):
     # This from email should be match in the coresponding provider
     from_email_default: EmailStr
 
-    reply_to_default: EmailStr | None = Field(default=None, repr=False)
+    reply_to_default: EmailStr | None = Field(
+        default=None,
+        repr=False,
+    )
 
 
 class MailSettings(BaseModel):
@@ -88,7 +95,6 @@ class MailSettings(BaseModel):
         "local",
         "smtp",
     ]
-    # how i can say it value will only, "local" or "smtp"
 
     host: str
     port: int
@@ -122,7 +128,7 @@ class RedisSettings(BaseModel):
     username: str | None = None
     password: SecretStr | None = None
 
-    # If provided, this takes priority over host,port,etc.
+    # If url provided, this takes priority over host,port,etc.
     url: str | None = None
 
 
@@ -137,8 +143,8 @@ class DatabaseSettings(BaseModel):
     """
 
     backend: Literal[
-        "sqlite",
         "postgres",
+        "sqlite",
     ] = "sqlite"
 
     sqlite_filename: str = "local_database.db"
@@ -160,8 +166,7 @@ class DatabaseSettings(BaseModel):
                 or self.name is None
             ):
                 raise RuntimeError(
-                    f"For Postgresql the value of all DB "
-                    "Connections this must be not None",
+                    f"Postgresql Needs Username, Password, Host, Port & Name.",
                 )
 
             POSTGRES_URL = (
@@ -229,13 +234,11 @@ class BotSettings(BaseModel):
     )
     username: str | None = Field(
         default=None,
-        description="If I want to specefy the username of the bot i "
-        "will write without the @ symbol",
+        description="The Bot's Username without the @ Symbol",
     )
     admin_chat_id: int | None = Field(
         default=None,
-        description="This is the chat id of the admin where some notifications "
-        "will send at bot start and so on",
+        description="Some Bot Related Notification will go to this User Account.",
     )
 
     startup_notify_enabled: bool = Field(
@@ -250,14 +253,16 @@ class BotSettings(BaseModel):
     )
     start_video_file_id: str | None = Field(
         default=None,
-        description="A sample video to shows user hot to use",
+        description="A sample video to shows user hot to use at startup",
     )
     song_forward_group_id: int | None = Field(
         default=-1004300343847,
         description="if there is group id then i will forword the thigns "
         "to this group",
     )
-    help_account_username: str
+    help_account_username: str = Field(
+        description="The Account Where the Bot say for help center.",
+    )
 
     default_song_format: AudioFormat = Field(
         default="m4a",
@@ -297,7 +302,7 @@ class BotSettings(BaseModel):
     )
 
     audio_thumbnail_brand_path: Path = Field(
-        # default=Path("static/RanaUniverseLogoForThumbnailTelegramBot.png"),
+        default=Path("static/RanaUniverseLogoForThumbnailTelegramBot.png"),
         description=(
             "Filesystem path to the brand logo used as an "
             "audio thumbnail when audio_thumbnail_mode='brand'."
@@ -316,13 +321,13 @@ class SongSettings(BaseModel):
         description="Duration in seconds used to determine whether a song is short or long.",
     )
 
-    short_cost: int = 2
-    long_cost: int = 3
-
     cost_applicable: bool = Field(
         default=False,
         description="Whether downloading a song costs credits.",
     )
+
+    short_cost: int = 2
+    long_cost: int = 3
 
     download_automatic: bool = Field(
         default=True,
@@ -331,7 +336,9 @@ class SongSettings(BaseModel):
 
 
 class AudioMergeSettings(BaseModel):
-    """Configuration for merging audio files in Telegram."""
+    """
+    Configuration for merging audio files in Telegram.
+    """
 
     enabled: bool = Field(
         default=True,
@@ -362,8 +369,8 @@ class AudioMergeSettings(BaseModel):
 
 
 class PathSettings(BaseModel):
-    log_filename: str = "LogFile.log"
     data_foldername: str = "data"
+    log_filename: str = "LogFile.log"
 
 
 class ExternalSettings(BaseModel):
@@ -371,7 +378,7 @@ class ExternalSettings(BaseModel):
 
     razorpay_profile_link: str = "https://razorpay.me/@RanaUniverse"
     paypal_profile_link: str = "https://paypal.me/RanaUniverse321"
-    my_donation_website: str = "https://donate_money.Rana49.online"
+    my_donation_website: str = "https://donate.Rana49.online"
     suno_song_create_link: str = "https://suno.com/create"
     my_email_id: str = "RanaUniverse321+tg_bot_help@gmail.com"
 
