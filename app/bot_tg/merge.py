@@ -476,10 +476,12 @@ async def merge_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     light_sticker = await message.reply_sticker(StickerFileId.LIGHTNING)
 
     with output_path.open("rb") as f:
+        thumbnail_path = get_audio_thumbnail()
+        thumbnail = thumbnail_path.read_bytes() if thumbnail_path else None
         audio_msg = await message.reply_audio(
             audio=f,
             duration=total_seconds,
-            thumbnail=get_audio_thumbnail(),
+            thumbnail=thumbnail,
             caption=(
                 "🎧 <b>Your Merged Songs Are Ready!</b>\n\n"
                 "📥 Download your songs and enjoy listening anytime.\n"
