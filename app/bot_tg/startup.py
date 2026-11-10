@@ -17,7 +17,6 @@ from app.shared.logger_related import RanaLogger
 
 async def notify_admin_on_startup(
     application: Application,  # type: ignore #TODO
-    # type: ignore #TODO
 ) -> None:
     local_api = settings.bot.local_api
 

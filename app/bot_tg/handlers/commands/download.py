@@ -1,31 +1,25 @@
 """
-app/bot_tg/download_handlers.py
+app/bot_tg/handlers/commands/download.py
 
-"""
-
-"""
-app/bot_tg/downloads_handler.py
-
-Handles the /downloads command.
-
-For now there is no login system, so every user gets the
-"please login or buy premium" message. Later, when accounts exist,
-the logged-in branch will show how many songs the user downloaded.
+/download will be here
 """
 
 from telegram import Update, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
+
 from app.shared.logger_related import RanaLogger
 
-from .text_formatter import (
+
+from ...ui.text_formatter import (
     get_not_logged_in_message,
     get_downloads_count_message,
 )
-from .keyboards import generate_login_premium_keyboard
+
+from ...ui.keyboards import generate_login_premium_keyboard
 
 
-async def get_user_account(user_id: int) -> None:
+async def get_user_account(user_id: int,) -> None:
     """
     Placeholder. Later this will check your DB/Redis for a logged-in
     account and return something like {"downloads_count": 100, "is_premium": True}.
@@ -34,7 +28,7 @@ async def get_user_account(user_id: int) -> None:
     return None
 
 
-async def download_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def download_command(update: Update, context: ContextTypes.DEFAULT_TYPE,):
     user = update.effective_user
     message = update.effective_message
 
@@ -53,7 +47,6 @@ async def download_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Logged in (future)
     await message.reply_text(
         text=get_downloads_count_message(
             count=account["downloads_count"],

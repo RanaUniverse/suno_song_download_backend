@@ -1,9 +1,17 @@
-# app/bot_tg/file_handler.py
+"""
+app/bot_tg/handlers/document.py
+
+It will decide what happens when a documents will comes here
+"""
 
 from pathlib import Path
 
+
 from telegram import Update
 from telegram.ext import ContextTypes
+
+#
+
 
 # Resolve the download directory relative to the project working directory.
 DOWNLOAD_DIR = (Path.cwd() / "downloads" / "auto_download").resolve()

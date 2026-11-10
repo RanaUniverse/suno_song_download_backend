@@ -13,17 +13,20 @@ from telegram.ext import (
 )
 
 
-from .text_formatter import (
-    settings_text,
-    help_text,
+from ...ui.text_formatter import (
     about_text,
+    help_text,
+    settings_text,
     token_text,
 )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Provides help instructions for using the bot."""
-    message = update.message
+    """
+    Provides help instructions for using the bot.
+    """
+
+    message = update.effective_message
     if not message:
         return
 
@@ -31,8 +34,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Tells the user about the project and web app connection."""
-    message = update.message
+    """
+    Tells the user about the project and web app connection.
+    """
+    message = update.effective_message
     if not message:
         return
 
@@ -40,8 +45,10 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Placeholder for managing user settings."""
-    message = update.message
+    """
+    Placeholder for managing user settings.
+    """
+    message = update.effective_message
     if not message:
         return
 
@@ -50,7 +57,7 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def token_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Placeholder for managing account tokens linked to the web app."""
-    message = update.message
+    message = update.effective_message
     if not message:
         return
 
@@ -61,7 +68,7 @@ async def photo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Learning how to send photo to user via bot
     """
-    msg = update.message
+    msg = update.effective_message
 
     if not msg:
         return
@@ -70,3 +77,4 @@ async def photo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # photo="/home/rana/Pictures/linux_logo.png",
         photo="https://avatars.githubusercontent.com/u/142967497?v=4",
     )
+    print(b)

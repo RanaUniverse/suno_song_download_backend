@@ -55,6 +55,8 @@ class WebAppSettings(BaseModel):
         "PRODUCTION",
     ] = "DEVELOPMENT"
 
+    SONG_DOWNLOAD_WEBSITE: str = "https://SunoAisongDownload.online"
+
     ALLOWED_ORIGINS: list[str] = [
         "http://localhost:5500",
         "http://127.0.0.1:5500",
@@ -258,6 +260,12 @@ class BotSettings(BaseModel):
         "to this group",
     )
     help_account_username: str
+
+    notification_chat_id: int | None = None
+    send_song_photo: bool = Field(
+        default=True,
+        description="It will decide if song photo will send to the user at first or not?",
+    )
 
     default_song_format: AudioFormat = Field(
         default="m4a",

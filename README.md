@@ -100,3 +100,10 @@ uv run python -m app.features.suno_downloader https://suno.com/song/e7faed2c-217
 uv run python -m app.features.suno_mobile_server
 
 ```
+
+## Project Structure
+
+Here i will try to separate my project in different folders and so on.
+
+
+### Bot Structures:

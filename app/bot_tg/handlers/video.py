@@ -1,4 +1,10 @@
 """
+app/bot_tg/handlers/video.py
+
+This will decide about what to do after receive a video from the user
+"""
+
+"""
 app/bot_tg/video_handler.py
 
 Receive a video from the user and send the same video back.

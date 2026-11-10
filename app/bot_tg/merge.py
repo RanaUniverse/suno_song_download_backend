@@ -45,12 +45,15 @@ from telegram.ext import (
 import imageio_ffmpeg  # type: ignore
 
 
-from app.bot_tg.config import StickerFileId
+from app.bot_tg.constants import StickerFileId
 from app.config import settings
 from app.shared.logger_related import RanaLogger
 
-from .audio import format_duration, forward_song_to_channel
-from .thumbnail import get_audio_thumbnail
+
+from .services.notifications import notify_song_merge_done
+
+from .ui.audio_info import format_duration
+from .services.thumbnail import get_audio_thumbnail
 
 #
 
@@ -493,12 +496,11 @@ async def merge_now(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                 f'<a href="tg://user?id={user.id}">'
                 f"{html.escape(user.full_name)}</a>"
             )
-            await forward_song_to_channel(
-                context=context,
+            await notify_song_merge_done(
+                bot=context.bot,
                 audio_file_id=audio_msg.audio.file_id,
                 user_name=f"{user_mention}",
-                is_merge_audio=True,
-                merged_song_count=total_count,
+                merged_count=total_count,
             )
 
     await light_sticker.delete()

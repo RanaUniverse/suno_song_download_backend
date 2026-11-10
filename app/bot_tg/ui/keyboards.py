@@ -1,5 +1,7 @@
 """
-app/bot_tg/keyboards.py
+app/bot_tg/ui/keyboards.py
+
+The Keyboards will create here
 
 The keyboards which will attach with the bot message
 mostly will be created and kept here for easy access

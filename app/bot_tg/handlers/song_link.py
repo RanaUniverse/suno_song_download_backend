@@ -1,7 +1,8 @@
 """
-app/bot_tg/handlers.py
+app/bot_tg/handlers/song_link.py
 
-Some of the handlers will be kept here
+Here songs link will extract from the message and then
+the thigns will decide here what to do!
 """
 
 import asyncio
@@ -30,7 +31,7 @@ from telegram.ext import (
 from app.config import settings
 from app.shared.logger_related import RanaLogger
 
-from .utils import extract_valid_song_link_from_message_entities
+from ..utils import extract_valid_song_link_from_message_entities
 
 from app.features.suno_downloader import SunoScraper
 from app.features.suno.models import SongInfo
@@ -38,60 +39,28 @@ from app.shared.song_info import (
     calculate_song_cost,
 )
 
-from .text_formatter import (
+from ..ui.text_formatter import (
     generate_successful_song_caption,
     generate_non_suno_link_received_text,
     generate_wrong_suno_link_received_text,
     generate_no_link_received_text,
 )
 
-from .keyboards import (
+from ..ui.keyboards import (
     generate_dynamic_keyboard,
 )
 
-from .config import StickerFileId
+from ..constants import StickerFileId
 
 
 from app.config import settings
 
 from app.features.suno.service import download_suno_song
 
-from .audio import forward_song_to_channel
-from .thumbnail import get_audio_thumbnail
+from ..services.notifications import notify_song_downloaded
+from ..services.thumbnail import get_audio_thumbnail
 
 # #
-
-
-BOT_TOKEN = settings.bot.token.get_secret_value()
-
-
-async def caps(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    This will send the later part of the command return in upper text
-    '/caps this text will go to uppercase'
-    """
-    if not update.effective_user:
-        return
-
-    if not context.args:
-        warning_text = (
-            "⚠️ <b>Oops!</b> You forgot to add some text.\n\n"
-            "Please use words after the /caps command like this:\n"
-            "<code>/caps hello world</code> 🔠"
-        )
-        await context.bot.send_message(
-            chat_id=update.effective_user.id,
-            text=warning_text,
-        )
-        return
-
-    uppercased_text = " ".join(context.args).upper()
-
-    response_text = f"🔠 <b>Your Uppercased Text:</b>\n\n\n{uppercased_text}"
-    await context.bot.send_message(
-        update.effective_user.id,
-        response_text,
-    )
 
 
 async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -182,13 +151,14 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
     try:
         buttons = generate_dynamic_keyboard(final_song_url)
-        await message.reply_photo(
-            photo=song_data.image_url or "",
-            # TODO i need to htink how to handle image if not
-            caption=caption,
-            do_quote=True,
-            reply_markup=InlineKeyboardMarkup(buttons),
-        )
+        if settings.bot.send_song_photo:
+            await message.reply_photo(
+                photo=song_data.image_url or "",
+                # TODO i need to htink how to handle image if not
+                caption=caption,
+                do_quote=True,
+                reply_markup=InlineKeyboardMarkup(buttons),
+            )
 
         loading_sticker = await message.reply_sticker(
             StickerFileId.LOADING_ROUNDED,
@@ -241,11 +211,11 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
                             f'<a href="tg://user?id={user.id}">'
                             f"{html.escape(user.full_name)}</a>"
                         )
-                        await forward_song_to_channel(
-                            context=context,
+                        await notify_song_downloaded(
+                            bot=context.bot,
                             audio_file_id=audio_after_send.audio.file_id,
-                            song_data=song_data,
                             user_name=f"{user_mention}",
+                            song=song_data,
                         )
 
                 except Exception as e:

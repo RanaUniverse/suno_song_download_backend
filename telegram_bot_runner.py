@@ -11,27 +11,28 @@ from telegram.ext import (
 )
 
 
-from app.bot_tg.basic_commands import (
+from app.bot_tg.handlers.commands.basic import (
     help_command,
     about_command,
     settings_command,
     token_command,
     photo_command,
 )
-from app.bot_tg.handlers import (
-    caps,
+from app.bot_tg.handlers.song_link import (
     get_url_from_message,
 )
-from app.bot_tg.photo_handler import (
+from app.bot_tg.handlers.photo import (
     photo_handler,
 )
-from app.bot_tg.start_handler import start_command
+from app.bot_tg.handlers.commands.start import start_command
 from app.bot_tg.application import application
-from app.bot_tg.video_handler import get_video_file_id
-from app.bot_tg.audio import audio_handler
+from app.bot_tg.handlers.video import get_video_file_id
+from app.bot_tg.handlers.audio import audio_handler
+from app.bot_tg.handlers.document import handle_document_file
 from app.bot_tg.merge import merge_audio_conversation_handler
-from app.bot_tg.file_handler import handle_document_file
-from app.bot_tg.download_handlers import download_command
+
+#
+
 if __name__ == "__main__":
 
     start_handler = CommandHandler("start", start_command)
@@ -39,7 +40,6 @@ if __name__ == "__main__":
         filters=filters.TEXT & (~filters.COMMAND) & filters.ChatType.PRIVATE,
         callback=get_url_from_message,
     )
-    caps_handler = CommandHandler("caps", caps)
     help_handler = CommandHandler("help", help_command)
     about_handler = CommandHandler("about", about_command)
     settings_handler = CommandHandler("settings", settings_command)
@@ -49,7 +49,6 @@ if __name__ == "__main__":
     application.add_handler(merge_audio_conversation_handler)
     application.add_handler(start_handler)
     application.add_handler(echo_handler)
-    application.add_handler(caps_handler)
     application.add_handler(help_handler)
     application.add_handler(about_handler)
     application.add_handler(settings_handler)
@@ -78,8 +77,5 @@ if __name__ == "__main__":
             filters.ATTACHMENT,
             handle_document_file,
         )
-    )
-    application.add_handler(
-        CommandHandler('download',download_command)
     )
     application.run_polling()

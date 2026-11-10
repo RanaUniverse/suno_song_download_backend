@@ -5,6 +5,8 @@ Here i will write some code which will help to
 get the correct things for differne purpose
 """
 
+import html
+
 from urllib.parse import urlparse
 
 
@@ -12,6 +14,9 @@ from telegram import MessageEntity
 
 
 from app.config import settings
+
+#
+
 
 SUNO_TARGET_DOMAIN = settings.external.suno_target_domain
 
@@ -48,3 +53,25 @@ def extract_valid_song_link_from_message_entities(
         return True, valid_url
     else:
         return False, formatted_url
+
+
+def escape_html(
+    value: object | None,
+) -> str:
+    """
+    Escape for Telegram HTML.
+    None becomes an empty string.
+    """
+    return "" if value is None else html.escape(str(value))
+
+
+def escape_html_or_default(
+    value: object | None,
+    default: str = "Not Provided By Telegram",
+) -> str:
+    """
+    Escape, or return `default` if the value is None or empty.
+    """
+    if value is None or value == "":
+        return default
+    return html.escape(str(value))
