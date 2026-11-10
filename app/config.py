@@ -379,7 +379,7 @@ class ExternalSettings(BaseModel):
 
     razorpay_profile_link: str = "https://razorpay.me/@RanaUniverse"
     paypal_profile_link: str = "https://paypal.me/RanaUniverse321"
-    my_donation_website: str = "https://donate_money.Rana49.online"
+    my_donation_website: str = "https://donate.Rana49.online"
     suno_song_create_link: str = "https://suno.com/create"
     my_email_id: str = "RanaUniverse321+tg_bot_help@gmail.com"
 
