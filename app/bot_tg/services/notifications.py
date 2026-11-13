@@ -3,7 +3,7 @@ app/bot_tg/services/notifications.py
 """
 
 from collections.abc import Awaitable, Callable
-
+from textwrap import shorten
 
 from telegram import Bot, LinkPreviewOptions, User
 from telegram.error import TelegramError
@@ -12,12 +12,13 @@ from telegram.error import TelegramError
 from app.config import settings
 from app.features.suno.models import SongInfo
 from app.shared.logger_related import RanaLogger
-
+from app.config import settings
 
 from ..utils import escape_html
 from ..ui.text_formatter import generate_song_details_only
 
 #
+MAX_TEXT_PREVIEW = settings.bot.max_text_preview_for_audio_creating
 
 
 ChatId = int | str
@@ -33,7 +34,6 @@ async def _deliver(
     """
 
     chat_id = settings.bot.notification_chat_id
-
 
     if not chat_id:
         RanaLogger.warning(f"Notification '{event}' skipped: no chat configured.")
@@ -110,4 +110,34 @@ async def notify_song_merge_done(
             caption=caption,
         ),
         "merge_done",
+    )
+
+
+async def notify_text_to_audio_generated(
+    bot: Bot,
+    audio_file_id: str,
+    user_name: str,
+    source_text: str,
+    voice_name: str | None = None,
+) -> bool:
+    preview = escape_html(shorten(source_text, width=MAX_TEXT_PREVIEW, placeholder="…"))
+    voice_line = (
+        f"🎙️ <b>Voice:</b> <code>{escape_html(voice_name)}</code>\n"
+        if voice_name
+        else ""
+    )
+
+    caption = (
+        f"🗣️ <b>Text to audio by:</b> {user_name}\n"
+        f"{voice_line}\n"
+        f"📝 <b>Text:</b>\n<i>{preview}</i>"
+    )
+
+    return await _deliver(
+        lambda chat_id: bot.send_audio(
+            chat_id=chat_id,
+            audio=audio_file_id,
+            caption=caption,
+        ),
+        event="text_to_audio",
     )

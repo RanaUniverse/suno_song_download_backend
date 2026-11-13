@@ -17,4 +17,5 @@ dependencies = [
     "requests>=2.34.2",
     "uvicorn>=0.54.0",
     "python-telegram-bot>=22.8",
+    "edge-tts>=7.3.1",
 ]

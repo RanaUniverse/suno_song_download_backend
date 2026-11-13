@@ -18,9 +18,7 @@ from app.bot_tg.handlers.commands.basic import (
     token_command,
     photo_command,
 )
-from app.bot_tg.handlers.song_link import (
-    get_url_from_message,
-)
+from app.bot_tg.handlers.general import route_text_message
 from app.bot_tg.handlers.photo import (
     photo_handler,
 )
@@ -36,9 +34,9 @@ from app.bot_tg.merge import merge_audio_conversation_handler
 if __name__ == "__main__":
 
     start_handler = CommandHandler("start", start_command)
-    echo_handler = MessageHandler(
+    text_handler = MessageHandler(
         filters=filters.TEXT & (~filters.COMMAND) & filters.ChatType.PRIVATE,
-        callback=get_url_from_message,
+        callback=route_text_message,
     )
     help_handler = CommandHandler("help", help_command)
     about_handler = CommandHandler("about", about_command)
@@ -48,7 +46,7 @@ if __name__ == "__main__":
 
     application.add_handler(merge_audio_conversation_handler)
     application.add_handler(start_handler)
-    application.add_handler(echo_handler)
+    application.add_handler(text_handler)
     application.add_handler(help_handler)
     application.add_handler(about_handler)
     application.add_handler(settings_handler)

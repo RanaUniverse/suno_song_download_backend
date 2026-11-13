@@ -316,6 +316,8 @@ class BotSettings(BaseModel):
         description="If it will shows song caption or not will be useful "
         "for custom bot of other user so that they will not have problem",
     )
+    max_tts_chars: int = 3000
+    max_text_preview_for_audio_creating: int = 100
 
 
 class SongSettings(BaseModel):

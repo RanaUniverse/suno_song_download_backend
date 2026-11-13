@@ -20,7 +20,7 @@ from app.config import settings
 
 RAZORPAY_PROFILE_LINK = settings.external.razorpay_profile_link
 PAYPAL_PROFILE_LINK = settings.external.paypal_profile_link
-MY_WEBSITE_LINK = settings.external.my_donation_website
+MY_WEBSITE_LINK = "https://SunoAisongdownlaod.online"
 SUNO_SONG_CREATE_LINK = settings.external.suno_song_create_link
 MY_TELEGRAM_CONTACT_LINK = f"https://t.me/{settings.bot.help_account_username}"
 

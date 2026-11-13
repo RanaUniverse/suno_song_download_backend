@@ -12,8 +12,6 @@ from pathlib import Path
 
 from telegram import (
     Update,
-    MessageEntity,
-    # LinkPreviewOptions,
     InlineKeyboardMarkup,
 )
 from telegram.constants import (
@@ -31,7 +29,6 @@ from telegram.ext import (
 from app.config import settings
 from app.shared.logger_related import RanaLogger
 
-from ..utils import extract_valid_song_link_from_message_entities
 
 from app.features.suno_downloader import SunoScraper
 from app.features.suno.models import SongInfo
@@ -41,9 +38,7 @@ from app.shared.song_info import (
 
 from ..ui.text_formatter import (
     generate_successful_song_caption,
-    generate_non_suno_link_received_text,
     generate_wrong_suno_link_received_text,
-    generate_no_link_received_text,
 )
 
 from ..ui.keyboards import (
@@ -57,54 +52,29 @@ from app.config import settings
 
 from app.features.suno.service import download_suno_song
 
+
 from ..services.notifications import notify_song_downloaded
 from ..services.thumbnail import get_audio_thumbnail
 
-# #
+#
 
 
-async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_suno_song_link(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    final_song_url: str,
+):
     """
-    This will try to extract the url from the text and send user back.
-
-    From the user text, i want it will extract the first url and then try
-    to match this with my base_url ie target_url
+    This function is called by another Update function there not directly
     """
 
     message = update.effective_message
     chat = update.effective_chat
     user = update.effective_user
-
     if not message or not chat or not user:
         RanaLogger.warning(
-            "Message & Chat should present when in text",
+            "msg,chat,user must present in call song link from message",
         )
-        return
-
-    # https://docs.python-telegram-bot.org/en/stable/telegram.message.html#telegram.Message.parse_entities
-    urls_dict = message.parse_entities(types=[MessageEntity.URL])
-
-    print(f"Printing the URLS LIST {urls_dict}")
-
-    if not urls_dict:
-        text = generate_no_link_received_text()
-        await message.reply_sticker(
-            StickerFileId.NO_RED_SMOKE,
-        )
-        await message.reply_text(
-            text,
-        )
-        return
-
-    is_valid, final_song_url = extract_valid_song_link_from_message_entities(
-        urls_dict,
-    )
-
-    if not is_valid:
-        txt = generate_non_suno_link_received_text(
-            wrong_url=final_song_url,
-        )
-        await message.reply_text(txt)
         return
 
     fetch_task = asyncio.create_task(
@@ -118,9 +88,6 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
         StickerFileId.LIGHTNING,
     )
 
-    # await message.reply_chat_action(
-    #     action=ChatAction.UPLOAD_PHOTO,
-    # )
     try:
         song_data: SongInfo = await fetch_task
 
@@ -205,7 +172,6 @@ async def get_url_from_message(update: Update, context: ContextTypes.DEFAULT_TYP
                     )
 
                     if audio_after_send.audio:
-                        print(audio_after_send)
 
                         user_mention = (
                             f'<a href="tg://user?id={user.id}">'
