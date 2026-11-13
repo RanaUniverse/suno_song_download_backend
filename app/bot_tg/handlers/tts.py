@@ -8,7 +8,6 @@ import html
 
 
 from telegram import Update, InlineKeyboardMarkup
-from telegram.constants import ChatAction
 from telegram.ext import ContextTypes
 
 from app.features.tts.service import text_to_speech
@@ -57,11 +56,21 @@ async def handle_text_to_voice(
         "🎙 Generating Your Song, Please wait...",
         do_quote=True,
     )
+    processing_sticker = await message.reply_sticker(StickerFileId.LIGHTNING)
 
     audio_path = None
     try:
-        processing_sticker = await message.reply_sticker(StickerFileId.LIGHTNING)
-        audio_path = await text_to_speech(text, user_id=user.id, voice=voice)
+        # updated_text = (
+        #     text
+        #     + "\n\n🍌 Advertise: You Can Also Create Unlimited Songs From: www.SunoAiSongDownload.Online"
+        # )
+        # i can do this from config for pro users or not
+        updated_text = text
+        audio_path = await text_to_speech(
+            updated_text,
+            user_id=user.id,
+            voice=voice,
+        )
         with open(audio_path, "rb") as f:
             buttons = generate_dynamic_keyboard("www.sunoaisongdownload.online")
             send_audio = await message.reply_audio(
